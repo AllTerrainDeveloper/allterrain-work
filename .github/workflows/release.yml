@@ -1,0 +1,137 @@
+name: Release
+
+# Triggered by pushing a vX.Y.Z tag. Verifies the tag against every place the
+# version is written, runs the WordPress.org review queue's own Plugin Check,
+# builds the zip, creates a GitHub Release with it attached, and finally
+# deploys stable tags to WordPress.org.
+#
+# Also runnable manually against an already-published tag, which re-attempts
+# the WordPress.org deploy and leaves the GitHub Release untouched:
+#
+#     gh workflow run release.yml --ref main -f tag=v1.0.0
+#
+# That exists because a tag push runs the workflow definition frozen into that
+# tag's commit, so a deploy that fails for a workflow-level reason can never be
+# fixed by re-running it. Dispatching from main runs the current definition.
+#
+# NOTE: the WordPress.org step cannot succeed until AllTerrain Work is approved
+# and its SVN repository exists at
+# https://plugins.svn.wordpress.org/allterrain-work. Until then the first
+# submission is a manual zip upload -- `npm run plugin:package` builds exactly
+# the file to upload. Everything before that step is useful from the first tag.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Published tag to deploy to WordPress.org (e.g. v1.0.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build & publish release
+    runs-on: ubuntu-latest
+    env:
+      # The tag being released: the pushed ref, or the dispatch input. Consumed
+      # as a shell variable rather than interpolated into `run:` bodies, so the
+      # dispatch input cannot inject into the script.
+      TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref_name }}
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Four places carry the version and WordPress.org rejects a submission
+      # whose readme.txt Stable tag disagrees with the plugin header. The
+      # packager checks the four against each other; this also checks them
+      # against the tag, which is the one thing it cannot see. Caught here
+      # rather than after the GitHub Release is already published.
+      - name: Verify tag matches plugin version
+        run: |
+          tag="${TAG#v}"
+          pkg=$(node -p "require('./package.json').version")
+          header=$(awk '/^[[:space:]]*\*[[:space:]]*Version:/ { print $3; exit }' allterrain-work.php)
+          constant=$(awk -F"'" '/ATWORK_VERSION/ { print $4; exit }' allterrain-work.php)
+          stable=$(awk '/^Stable tag:/ { print $3; exit }' readme.txt)
+          if ! [[ "$tag" == "$pkg" && "$tag" == "$header" && "$tag" == "$constant" && "$tag" == "$stable" ]]; then
+            echo "::error::Version mismatch — tag '$tag' vs package.json=$pkg header=$header ATWORK_VERSION=$constant readme.txt Stable tag=$stable"
+            exit 1
+          fi
+          # The deploy action derives VERSION from GITHUB_REF, which is only a
+          # tag ref on a tag push -- on a dispatch it resolves to the branch ref
+          # and the SVN tag copy becomes `tags/refs/heads/main`. Publish the
+          # version that was just checked against all four locations, so the
+          # deploy uses a verified value however the workflow was triggered.
+          echo "VERSION=$tag" >> "$GITHUB_ENV"
+
+      # Typecheck, Vitest, all four bundles, then the zip.
+      - name: Build & package
+        run: npm run plugin:package
+
+      - name: Start wp-env
+        run: npm run env:start
+
+      # The gate. Plugin Check is what the WordPress.org review queue runs, so
+      # failing here means the release would have been rejected -- better to
+      # find that before a GitHub Release exists and before anything is pushed
+      # to SVN, which cannot be taken back.
+      - name: Plugin Check
+        run: npm run plugin:check
+
+      # Skipped on a manual dispatch: the Release already exists and
+      # `gh release create` is not idempotent -- it would fail the job before
+      # it ever reached the deploy.
+      - name: Create GitHub Release
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          flags=()
+          if [[ "$TAG" == *-* ]]; then
+            flags+=(--prerelease)
+          fi
+          gh release create "$TAG" \
+            --title "$TAG" \
+            --generate-notes \
+            "${flags[@]}" \
+            dist/allterrain-work.zip
+
+      # Prereleases (v1.0.0-rc1) stop at the GitHub Release: WordPress.org has
+      # no concept of one, and pushing it would make it the live download.
+      - name: Deploy to WordPress.org
+        if: ${{ !contains(env.TAG, '-') }}
+        uses: 10up/action-wordpress-plugin-deploy@stable
+        env:
+          SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
+          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+          # Set explicitly rather than left to default off the GitHub repo name.
+          # The slug is the published SVN path and the install directory, so it
+          # can never be allowed to drift.
+          SLUG: allterrain-work
+          # `bin/package.mjs` stages both halves of an SVN commit: the plugin
+          # tree the zip was built from, and any banner/icon art in
+          # `.wordpress-org/`, which belongs in the directory's own assets/ path
+          # rather than in the download.
+          BUILD_DIR: ./dist/allterrain-work
+          ASSETS_DIR: ./dist/assets
+          # VERSION comes from the verify step via $GITHUB_ENV -- see the note
+          # there. Both it and SLUG default off a GitHub context that is only
+          # correct for a tag push, so neither is left implicit.

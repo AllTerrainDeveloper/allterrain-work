@@ -161,6 +161,12 @@ Moves are the one mutation the framework cannot see for itself — dropping a ca
 
 ## Install
 
+Grab the zip from [Releases](https://github.com/AllTerrainDeveloper/allterrain-work/releases)
+and upload it at **Plugins → Add New → Upload Plugin** — the built bundles are in the
+package, so there is nothing to compile.
+
+To work on it instead:
+
 ```bash
 git clone https://github.com/AllTerrainDeveloper/allterrain-work
 cd allterrain-work
@@ -174,22 +180,41 @@ started, Working on it, Stuck, Done — if the site has none.
 ## Commands
 
 ```bash
-npm run build          # all bundles, then deploy
-npm run dev            # watch-build the board bundle
-npm run typecheck      # tsc --noEmit
-npm test               # vitest
-npm run test:php       # PHPUnit, inside the QA container
-npm run lint:php       # WordPress Coding Standards
+npm run build            # all bundles, then deploy
+npm run dev              # watch-build the board bundle
+npm run typecheck        # tsc --noEmit
+npm test                 # vitest
+npm run test:php         # PHPUnit
+npm run lint:php         # WordPress Coding Standards
+
+npm run env:start        # wp-env, for the PHP suite and Plugin Check
+npm run plugin:package   # -> dist/allterrain-work.zip
+npm run plugin:check     # WordPress.org's own Plugin Check
+npm run plugin:release   # build + check + package, the full gate
 ```
 
 ## Testing
 
-133 PHPUnit tests and 64 vitest tests, all green, plus `phpcs` clean against the WordPress
+135 PHPUnit tests and 64 vitest tests, all green, plus `phpcs` clean against the WordPress
 Coding Standards.
 
-`npm run test:php` runs the suite inside a Docker container, because that is where a
-WordPress test library and a MySQL server live. It skips with a note when the container is
-not running.
+`npm run test:php` needs a WordPress test library and a MySQL server, neither of which is
+in this repository. It finds them in whichever environment is actually up — the local
+docker-compose QA site if it is running, otherwise [wp-env](https://www.npmjs.com/package/@wordpress/env)
+from `.wp-env.json` — and skips with a note when neither is. One command rather than one
+per environment, so the suite cannot quietly stop being run on either.
+
+## Releasing
+
+`npm run plugin:package` stages the tree, checks that all four places carrying the version
+agree, and writes `dist/allterrain-work.zip`. What ships is decided in one place —
+`bin/ships.mjs` — which both the packager and Plugin Check read, so the check can never be
+blind to something the zip does contain. Nothing beginning with a dot ever ships.
+
+Pushing a `vX.Y.Z` tag runs [`release.yml`](.github/workflows/release.yml): it verifies the
+tag against the plugin header, `ATWORK_VERSION`, `readme.txt`'s Stable tag and
+`package.json`, runs Plugin Check, attaches the zip to a GitHub Release, and deploys stable
+tags to WordPress.org. Prereleases (`v1.0.0-rc1`) stop at the GitHub Release.
 
 ---
 

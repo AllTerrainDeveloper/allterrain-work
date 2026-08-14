@@ -16,6 +16,8 @@ export interface TaskComment {
 	/** ISO 8601, UTC. */
 	date: string;
 	canDelete: boolean;
+	/** Written by the person reading it, so the thread can align it to their side. */
+	isMine: boolean;
 }
 
 /** Somebody a task can be assigned to. */

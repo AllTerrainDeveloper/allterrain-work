@@ -43,6 +43,7 @@ import { ask, confirm as inlineConfirm, notice } from './inline-ui';
 import { onProjectFocus } from './focus';
 import { closeAssigneePicker, openAssigneePicker } from './assignee-picker';
 import { closeComments, openComments } from './comments';
+import { bubbleIcon } from './icons';
 import { buttonControl, selectControl, textControl } from './os-ui';
 import { openUrl, routeLinkIntoShell } from './open';
 import {
@@ -811,6 +812,11 @@ class BoardView {
 	 *
 	 * Always present, even at zero. A thread you can only find once somebody
 	 * else has started it is a thread nobody starts.
+	 *
+	 * Sized to sit level with the avatar beside it rather than shrunk to fit
+	 * around the text: this was a 10px emoji at 45% opacity, which is a target
+	 * nobody can hit and an affordance nobody notices. It is now the same height
+	 * as the assign control, so the meta row reads as a row of controls.
 	 */
 	private commentControl( task: Task ): HTMLElement {
 		const button = document.createElement( 'button' );
@@ -818,42 +824,50 @@ class BoardView {
 		button.className = 'atwork-card__comments';
 		button.setAttribute( 'aria-haspopup', 'dialog' );
 		button.setAttribute( 'aria-expanded', 'false' );
-		button.setAttribute(
-			'aria-label',
-			task.comments ? `${ task.comments } comments. Open the thread.` : 'Comment on this task'
-		);
-		button.title = task.comments ? `${ task.comments } comments` : 'Comment';
 
-		const icon = document.createElement( 'span' );
-		icon.className = 'atwork-card__comments-icon';
-		icon.setAttribute( 'aria-hidden', 'true' );
-		icon.textContent = '💬';
-		button.appendChild( icon );
+		const count = document.createElement( 'span' );
+		count.className = 'atwork-card__comments-count';
 
-		if ( task.comments ) {
-			const count = document.createElement( 'span' );
-			count.textContent = String( task.comments );
-			button.appendChild( count );
-		} else {
-			button.classList.add( 'is-empty' );
-		}
+		/**
+		 * Paints the button for a given number of comments.
+		 *
+		 * Shared by the first render and by the panel's own callback, so an
+		 * emptied thread returns the button to exactly the state a card drawn
+		 * from scratch would have rather than to an approximation of it.
+		 *
+		 * @param total How many comments the task has.
+		 */
+		const paint = ( total: number ) => {
+			button.classList.toggle( 'is-empty', 0 === total );
+			button.setAttribute(
+				'aria-label',
+				total
+					? `${ total } ${ 1 === total ? 'comment' : 'comments' }. Open the thread.`
+					: 'Comment on this task'
+			);
+			button.title = total
+				? `${ total } ${ 1 === total ? 'comment' : 'comments' }`
+				: 'Start the conversation';
+
+			button.querySelector( 'svg' )?.remove();
+			button.prepend( bubbleIcon( total > 0 ) );
+
+			count.textContent = total ? String( total ) : '';
+			count.hidden = ! total;
+		};
+
+		button.appendChild( count );
+		paint( task.comments );
 
 		button.addEventListener( 'pointerdown', ( ev ) => ev.stopPropagation() );
 		button.addEventListener( 'click', ( ev ) => {
 			ev.stopPropagation();
-			openComments( button, task.id, ( count ) => {
+			openComments( button, task.id, task.title, ( total ) => {
 				// Patch the count in place rather than re-rendering: a redraw
 				// mid-conversation would tear down the very panel the user is
 				// typing in.
-				this.applyTask( { ...task, comments: count } );
-				button.querySelector( 'span:not(.atwork-card__comments-icon)' )?.remove();
-				button.classList.toggle( 'is-empty', count === 0 );
-
-				if ( count ) {
-					const el = document.createElement( 'span' );
-					el.textContent = String( count );
-					button.appendChild( el );
-				}
+				this.applyTask( { ...task, comments: total } );
+				paint( total );
 			} );
 		} );
 

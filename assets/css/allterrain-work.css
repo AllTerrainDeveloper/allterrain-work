@@ -563,129 +563,416 @@ button.atwork__button--danger {
 
 /* -- Comments ------------------------------------------------------------ */
 
+/*
+ * The comment control.
+ *
+ * A pill the same height as the avatar beside it, so the meta row reads as a
+ * row of controls rather than as text with a glyph loose in it. The previous
+ * version was a 10px emoji at 45% opacity: too small to hit, too faint to
+ * notice, and drawn by the platform's emoji font at a size and weight no
+ * stylesheet could reach.
+ */
 .atwork-card__comments {
 	display: inline-flex;
-	gap: 3px;
+	gap: 4px;
 	align-items: center;
-	padding: 0 4px;
-	border: 0;
-	border-radius: 6px;
-	background: transparent;
+	justify-content: center;
+	min-inline-size: 22px;
+	block-size: 22px;
+	padding-inline: 5px;
+	border: 1px solid transparent;
+	border-radius: 999px;
+	background: var( --atwork-border );
 	color: var( --atwork-fg-muted );
 	cursor: pointer;
 	font: inherit;
 	font-size: 11px;
+	line-height: 1;
+	transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease;
 }
 
-.atwork-card__comments-icon {
-	font-size: 10px;
-	/* The glyph carries no information a screen reader needs — the button's
-	   own label says everything — and it renders at wildly different weights
-	   across platforms, so it is dimmed rather than relied on. */
-	opacity: 0.75;
+.atwork-card__comments svg {
+	display: block;
+	flex: none;
 }
 
-/* A thread nobody has started yet is quieter, but still there to be found. */
+.atwork-card__comments-count {
+	font-weight: 600;
+	/* Lining figures, so a count going 9 -> 10 does not shift the icon. */
+	font-variant-numeric: tabular-nums;
+}
+
+/*
+ * A thread nobody has started yet: a dashed ring and no fill, matching the
+ * unassigned avatar's language on the same row. Quieter than a live thread, but
+ * still a visible, full-size target — an affordance that only appears on hover
+ * is one most people never find, and this is the button that decides whether
+ * anybody talks about the work at all.
+ */
 .atwork-card__comments.is-empty {
-	opacity: 0.45;
+	border-color: var( --atwork-border );
+	border-style: dashed;
+	background: transparent;
 }
 
 .atwork-card__comments:hover,
 .atwork-card__comments:focus-visible {
-	opacity: 1;
+	border-color: var( --atwork-accent );
+	border-style: solid;
+	background: color-mix( in srgb, var( --atwork-accent ) 14%, transparent );
 	color: var( --atwork-accent );
-	background: color-mix( in srgb, var( --atwork-accent ) 10%, transparent );
 }
 
+.atwork-card__comments:focus-visible {
+	outline: 2px solid var( --atwork-accent );
+	outline-offset: 2px;
+}
+
+/*
+ * The thread panel, shaped like a conversation.
+ *
+ * Three rows in a column: a header that names the task, a scrolling list of
+ * messages, and a composer pinned to the bottom. Only the middle one scrolls,
+ * so the field you are typing into never leaves the screen.
+ */
 .atwork-comments {
 	position: fixed;
 	z-index: 999999;
 	display: flex;
 	flex-direction: column;
-	max-block-size: 300px;
-	padding: 8px;
+	max-block-size: 380px;
+	overflow: hidden;
 	border: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.15 ) );
-	border-radius: 10px;
+	border-radius: 14px;
 	background: var( --os-ui-surface, #fff );
 	color: var( --os-ui-fg, #1e1e1e );
-	box-shadow: 0 12px 34px rgba( 0, 0, 0, 0.32 );
+	box-shadow:
+		0 1px 2px rgba( 0, 0, 0, 0.1 ),
+		0 18px 44px rgba( 0, 0, 0, 0.28 );
 	font-size: 12px;
 }
 
+/* -- Header -- */
+
+.atwork-comments__header {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+	flex: none;
+	padding: 9px 10px 9px 12px;
+	border-block-end: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.1 ) );
+	/* Sits above the list rather than scrolling with it, and the tint keeps the
+	   first message from appearing to start inside the heading. */
+	background: color-mix( in srgb, var( --os-ui-fg, #1e1e1e ) 4%, transparent );
+}
+
+.atwork-comments__heading {
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+	min-inline-size: 0;
+}
+
+.atwork-comments__heading strong {
+	overflow: hidden;
+	font-size: 12px;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.atwork-comments__subtitle {
+	color: var( --os-ui-fg-muted, #646970 );
+	font-size: 10px;
+}
+
+.atwork-comments__close {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex: none;
+	inline-size: 24px;
+	block-size: 24px;
+	margin-inline-start: auto;
+	padding: 0;
+	border: 0;
+	border-radius: 6px;
+	background: transparent;
+	color: var( --os-ui-fg-muted, #646970 );
+	cursor: pointer;
+}
+
+.atwork-comments__close:hover {
+	background: color-mix( in srgb, var( --os-ui-fg, #1e1e1e ) 10%, transparent );
+	color: var( --os-ui-fg, #1e1e1e );
+}
+
+/* -- The conversation -- */
+
 .atwork-comments__list {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
 	flex: 1 1 auto;
 	min-block-size: 0;
+	padding: 12px;
 	overflow-y: auto;
+	overscroll-behavior: contain;
 }
 
 .atwork-comments__item {
-	padding-block: 6px;
-	border-block-end: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.1 ) );
+	display: flex;
+	gap: 8px;
+	align-items: flex-start;
+	max-inline-size: 100%;
 }
 
-.atwork-comments__item:last-child {
-	border-block-end: 0;
+/*
+ * Your own messages on your side. The single change that turns a list of rows
+ * into a conversation: you can see who is talking without reading a name.
+ */
+.atwork-comments__item.is-mine {
+	flex-direction: row-reverse;
+}
+
+/* A run of messages from one person is tightened up under the first. */
+.atwork-comments__item.is-grouped {
+	margin-block-start: -4px;
+}
+
+/*
+ * Holds the avatar's width even when grouping has removed the picture, so the
+ * bubbles below the first in a run stay on the same edge as the one above.
+ */
+.atwork-comments__gutter {
+	flex: none;
+	inline-size: 24px;
+	block-size: 24px;
+}
+
+.atwork-comments__gutter img {
+	inline-size: 100%;
+	block-size: 100%;
+	border-radius: 50%;
+	object-fit: cover;
+}
+
+.atwork-comments__bubble {
+	position: relative;
+	max-inline-size: calc( 100% - 34px );
+	padding: 6px 9px;
+	border-radius: 12px;
+	background: color-mix( in srgb, var( --os-ui-fg, #1e1e1e ) 7%, transparent );
+}
+
+/*
+ * The corner nearest the author is squared off — the flat edge that every chat
+ * client uses to point a bubble at whoever wrote it.
+ */
+.atwork-comments__item:not( .is-mine ) .atwork-comments__bubble {
+	border-start-start-radius: 4px;
+}
+
+.atwork-comments__item.is-mine .atwork-comments__bubble {
+	border-start-end-radius: 4px;
+	background: color-mix( in srgb, var( --os-ui-accent, #3858e9 ) 16%, transparent );
+}
+
+/* Mid-run bubbles have no corner to point: nothing above them to point at. */
+.atwork-comments__item.is-grouped .atwork-comments__bubble {
+	border-radius: 12px;
 }
 
 .atwork-comments__head {
 	display: flex;
 	gap: 6px;
-	align-items: center;
+	align-items: baseline;
+	margin-block-end: 2px;
 	color: var( --os-ui-fg-muted, #646970 );
-	font-size: 11px;
-}
-
-.atwork-comments__head img {
-	border-radius: 50%;
+	font-size: 10px;
 }
 
 .atwork-comments__head strong {
 	color: var( --os-ui-fg, #1e1e1e );
-}
-
-.atwork-comments__delete {
-	margin-inline-start: auto;
-	border: 0;
-	background: transparent;
-	color: inherit;
-	cursor: pointer;
-	font: inherit;
-}
-
-.atwork-comments__delete:hover {
-	color: var( --os-ui-danger, #d63638 );
+	font-size: 11px;
 }
 
 .atwork-comments__body {
-	margin: 3px 0 0;
+	margin: 0;
+	line-height: 1.4;
 	white-space: pre-wrap;
+	/* A pasted URL has no spaces to break at and would otherwise stretch the
+	   bubble past the panel. */
 	overflow-wrap: anywhere;
 }
 
-.atwork-comments__empty {
-	margin: 6px;
+/*
+ * Delete sits inside the bubble's top corner and appears on hover or focus.
+ * Always-visible it would put a control on every line of a conversation; hidden
+ * from the keyboard it would be unreachable, hence :focus-within.
+ */
+.atwork-comments__delete {
+	position: absolute;
+	inset-block-start: -6px;
+	inset-inline-end: -6px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	inline-size: 20px;
+	block-size: 20px;
+	padding: 0;
+	border: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.12 ) );
+	border-radius: 50%;
+	background: var( --os-ui-surface, #fff );
 	color: var( --os-ui-fg-muted, #646970 );
+	cursor: pointer;
+	opacity: 0;
+	transition: opacity 0.12s ease;
 }
 
+.atwork-comments__bubble:hover .atwork-comments__delete,
+.atwork-comments__bubble:focus-within .atwork-comments__delete {
+	opacity: 1;
+}
+
+.atwork-comments__delete:hover,
+.atwork-comments__delete:focus-visible {
+	border-color: var( --os-ui-danger, #d63638 );
+	color: var( --os-ui-danger, #d63638 );
+	opacity: 1;
+}
+
+/* -- Empty and loading -- */
+
+.atwork-comments__empty {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	align-items: center;
+	justify-content: center;
+	flex: 1 1 auto;
+	padding: 22px 12px;
+	text-align: center;
+}
+
+.atwork-comments__empty-icon {
+	margin-block-end: 4px;
+	color: var( --os-ui-fg-muted, #646970 );
+	opacity: 0.4;
+}
+
+.atwork-comments__empty-title {
+	margin: 0;
+	font-size: 12px;
+	font-weight: 600;
+}
+
+.atwork-comments__empty-hint {
+	margin: 0;
+	color: var( --os-ui-fg-muted, #646970 );
+	font-size: 11px;
+}
+
+.atwork-comments__loading {
+	margin: 0;
+	padding: 18px;
+	color: var( --os-ui-fg-muted, #646970 );
+	text-align: center;
+}
+
+/* -- Composer -- */
+
+/*
+ * The field and the send button share one bordered bar, and the BAR carries the
+ * focus ring rather than the field.
+ *
+ * Not only for looks. Core's `forms.css` styles `textarea:focus` with a
+ * WordPress-blue 2px ring at a specificity a single class of ours cannot beat,
+ * and the shell is a real wp-admin document so that stylesheet is always
+ * loaded. Stripping the field bare and moving the visible edge to the parent
+ * puts the control's appearance somewhere core has no selector for.
+ */
 .atwork-comments__form {
 	display: flex;
 	gap: 6px;
 	align-items: flex-end;
-	margin-block-start: 6px;
-	padding-block-start: 6px;
-	border-block-start: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.1 ) );
+	flex: none;
+	margin: 10px;
+	padding: 4px 4px 4px 10px;
+	border: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.15 ) );
+	border-radius: 12px;
+	background: var( --os-ui-surface, #fff );
+	transition: border-color 0.12s ease, box-shadow 0.12s ease;
 }
 
-.atwork-comments .atwork-comments__input {
+.atwork-comments__form:focus-within {
+	border-color: var( --os-ui-accent, #3858e9 );
+	box-shadow: 0 0 0 3px color-mix( in srgb, var( --os-ui-accent, #3858e9 ) 18%, transparent );
+}
+
+/*
+ * Every one of these is undoing something core's `forms.css` sets on a bare
+ * textarea — its border, its own rounded corners, its white fill, its focus
+ * ring and its minimum height. The `:focus` rule is not redundant with the
+ * base: core styles that state separately, so leaving it out is what put a
+ * blue ring inside our bar in the first place.
+ */
+.atwork-comments .atwork-comments__input,
+.atwork-comments .atwork-comments__input:focus {
 	flex: 1 1 auto;
-	min-block-size: 34px;
-	padding: 6px 8px;
-	border: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.15 ) );
-	border-radius: 6px;
-	background: var( --os-window-bg, #fff );
+	min-block-size: 0;
+	block-size: 26px;
+	max-block-size: 110px;
+	margin: 0;
+	padding: 4px 0;
+	border: 0;
+	border-radius: 0;
+	background: transparent;
+	box-shadow: none;
 	color: inherit;
 	font: inherit;
+	line-height: 1.4;
+	outline: 0;
 	resize: none;
+}
+
+.atwork-comments .atwork-comments__input::placeholder {
+	color: var( --os-ui-fg-muted, #646970 );
+	opacity: 0.75;
+}
+
+.atwork-comments__send {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex: none;
+	inline-size: 28px;
+	block-size: 28px;
+	padding: 0;
+	border: 0;
+	border-radius: 50%;
+	background: var( --os-ui-accent, #3858e9 );
+	color: #fff;
+	cursor: pointer;
+	transition: background-color 0.12s ease, transform 0.12s ease;
+}
+
+.atwork-comments__send:hover:not( :disabled ) {
+	transform: scale( 1.06 );
+}
+
+/*
+ * Nothing written yet. Faded rather than hidden: a button that appears and
+ * disappears as the field fills and empties moves the target under the pointer.
+ */
+.atwork-comments__send:disabled {
+	background: color-mix( in srgb, var( --os-ui-fg, #1e1e1e ) 15%, transparent );
+	color: var( --os-ui-fg-muted, #646970 );
+	cursor: default;
+}
+
+/* The send is in flight; the composer stops accepting a second one. */
+.atwork-comments.is-sending .atwork-comments__form {
+	opacity: 0.6;
 }
 
 /* -- Assigning ----------------------------------------------------------- */

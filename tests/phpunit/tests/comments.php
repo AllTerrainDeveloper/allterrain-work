@@ -203,6 +203,60 @@ class Tests_ATWork_Comments extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The thread aligns your own messages to your side, which it can only do if
+	 * the payload says which ones are yours.
+	 *
+	 * @covers ::atwork_prepare_comment
+	 */
+	public function test_a_comment_knows_whether_the_reader_wrote_it() {
+		$task = atwork_create_task( array( 'title' => 'Two voices' ) );
+
+		atwork_add_task_comment( $task['id'], 'Ana speaking' );
+
+		$other = self::factory()->user->create( array( 'role' => 'editor' ) );
+		wp_set_current_user( $other );
+		atwork_add_task_comment( $task['id'], 'Somebody else speaking' );
+
+		// Read back as the second author: theirs is mine, Ana's is not.
+		$thread = atwork_get_task_comments( $task['id'] );
+
+		$this->assertFalse( $thread[0]['isMine'] );
+		$this->assertTrue( $thread[1]['isMine'] );
+
+		// And the other way round, from Ana's seat.
+		wp_set_current_user( self::$editor );
+		$thread = atwork_get_task_comments( $task['id'] );
+
+		$this->assertTrue( $thread[0]['isMine'] );
+		$this->assertFalse( $thread[1]['isMine'] );
+	}
+
+	/**
+	 * The guard the field would be wrong without.
+	 *
+	 * A guest comment is stored with `user_id` 0, and so is a logged-out
+	 * reader's own id. Comparing the two without checking for zero would show
+	 * every anonymous comment on the thread as the reader's own.
+	 *
+	 * @covers ::atwork_prepare_comment
+	 */
+	public function test_an_anonymous_comment_is_nobody_s_own() {
+		$task = atwork_create_task( array( 'title' => 'Open house' ) );
+
+		$guest = self::factory()->comment->create(
+			array(
+				'comment_post_ID' => $task['id'],
+				'user_id'         => 0,
+				'comment_author'  => 'A passer-by',
+			)
+		);
+
+		wp_set_current_user( 0 );
+
+		$this->assertFalse( atwork_prepare_comment( get_comment( $guest ) )['isMine'] );
+	}
+
+	/**
 	 * A comment changes what every other board draws on that card.
 	 *
 	 * @covers ::atwork_add_task_comment

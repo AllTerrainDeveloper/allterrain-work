@@ -10,6 +10,10 @@ vendor/
 # Output of the release packaging step.
 dist/
 
+# wp-env's per-machine override. `.wp-env.json` is shared and committed; this
+# one exists to point a particular laptop somewhere else and must not be.
+.wp-env.override.json
+
 # Built bundles are deliberately *not* ignored: this repo is installable as a
 # plugin straight from a clone or a zip, and a plugin whose JavaScript has to be
 # compiled before it runs is not installable.

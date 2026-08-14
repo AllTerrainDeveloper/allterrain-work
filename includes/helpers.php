@@ -1466,6 +1466,8 @@ function atwork_get_task_comments( $task_id ) {
  * @return array Comment payload.
  */
 function atwork_prepare_comment( $comment ) {
+	$user_id = get_current_user_id();
+
 	return array(
 		'id'        => (int) $comment->comment_ID,
 		'author'    => $comment->comment_author,
@@ -1473,6 +1475,18 @@ function atwork_prepare_comment( $comment ) {
 		'content'   => wp_strip_all_tags( (string) $comment->comment_content ),
 		'date'      => mysql2date( 'c', $comment->comment_date_gmt, false ),
 		'canDelete' => current_user_can( 'edit_comment', $comment->comment_ID ),
+
+		/*
+		 * Whose message this is, so the thread can align it the way every
+		 * messaging app does -- yours on one side, everyone else's on the other.
+		 * Read from the stored author id and not from the name, because two
+		 * people called "admin" on a multisite would otherwise share a side.
+		 *
+		 * Compared against zero explicitly: a logged-out reader has user id 0,
+		 * and so does every comment left by a guest, so without the guard every
+		 * anonymous comment would render as the reader's own.
+		 */
+		'isMine'    => $user_id > 0 && (int) $comment->user_id === $user_id,
 	);
 }
 

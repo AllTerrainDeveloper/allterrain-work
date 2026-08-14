@@ -637,31 +637,86 @@
     panel.style.left = `${left}px`;
     panel.style.top = `${top}px`;
   }
+  const SVG_NS = "http://www.w3.org/2000/svg";
+  function icon(path, size, filled) {
+    const svg = document.createElementNS(SVG_NS, "svg");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("width", String(size));
+    svg.setAttribute("height", String(size));
+    svg.setAttribute("aria-hidden", "true");
+    svg.setAttribute("focusable", "false");
+    const el = document.createElementNS(SVG_NS, "path");
+    el.setAttribute("d", path);
+    if (filled) {
+      el.setAttribute("fill", "currentColor");
+    } else {
+      el.setAttribute("fill", "none");
+      el.setAttribute("stroke", "currentColor");
+      el.setAttribute("stroke-width", "1.8");
+      el.setAttribute("stroke-linecap", "round");
+      el.setAttribute("stroke-linejoin", "round");
+    }
+    svg.appendChild(el);
+    return svg;
+  }
+  const BUBBLE = "M20 4H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3v4l4.5-4H20a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1z";
+  function bubbleIcon(filled, size = 15) {
+    return icon(BUBBLE, size, filled);
+  }
+  function sendIcon(size = 15) {
+    return icon("M4 12l16-8-6 16-3-6-7-2z", size, true);
+  }
+  function closeIcon(size = 14) {
+    return icon("M6 6l12 12M18 6L6 18", size, false);
+  }
+  function trashIcon(size = 13) {
+    return icon("M4 7h16M10 7V5h4v2M6 7l1 13h10l1-13M10 11v5M14 11v5", size, false);
+  }
   let open = null;
   function closeComments() {
     open?.close();
   }
-  function openComments(anchor, taskId, onChange2) {
+  function openComments(anchor, taskId, title, onChange2) {
     closeComments();
     const panel = document.createElement("div");
     panel.className = "atwork-comments";
     panel.setAttribute("role", "dialog");
-    panel.setAttribute("aria-label", "Comments on this task");
+    panel.setAttribute("aria-label", `Comments on “${title}”`);
+    const header = document.createElement("header");
+    header.className = "atwork-comments__header";
+    const heading = document.createElement("div");
+    heading.className = "atwork-comments__heading";
+    const name = document.createElement("strong");
+    name.textContent = title;
+    name.title = title;
+    const subtitle = document.createElement("span");
+    subtitle.className = "atwork-comments__subtitle";
+    heading.append(name, subtitle);
+    const dismiss = document.createElement("button");
+    dismiss.type = "button";
+    dismiss.className = "atwork-comments__close";
+    dismiss.setAttribute("aria-label", "Close comments");
+    dismiss.title = "Close";
+    dismiss.appendChild(closeIcon());
+    header.append(heading, dismiss);
     const list = document.createElement("div");
     list.className = "atwork-comments__list";
     const form = document.createElement("form");
     form.className = "atwork-comments__form";
     const input = document.createElement("textarea");
     input.className = "atwork-comments__input";
-    input.rows = 2;
+    input.rows = 1;
     input.placeholder = "Write a comment…";
     input.setAttribute("aria-label", "Write a comment");
     const send = document.createElement("button");
     send.type = "submit";
-    send.className = "atwork__button atwork__button--primary";
-    send.textContent = "Comment";
+    send.className = "atwork-comments__send";
+    send.setAttribute("aria-label", "Post comment");
+    send.title = "Post — or press Enter";
+    send.appendChild(sendIcon());
+    send.disabled = true;
     form.append(input, send);
-    panel.append(list, form);
+    panel.append(header, list, form);
     document.body.appendChild(panel);
     position(panel, anchor);
     const close = () => {
@@ -679,7 +734,7 @@
       }
     };
     const onKey = (event) => {
-      if (event.key === "Escape") {
+      if ("Escape" === event.key) {
         event.stopPropagation();
         close();
         anchor.focus();
@@ -688,51 +743,87 @@
     document.addEventListener("pointerdown", onOutside, true);
     document.addEventListener("keydown", onKey, true);
     window.addEventListener("resize", close);
+    dismiss.addEventListener("click", () => {
+      close();
+      anchor.focus();
+    });
     anchor.setAttribute("aria-expanded", "true");
     open = { panel, close };
     let comments = [];
+    const countUp = () => {
+      const total = comments.length;
+      subtitle.textContent = total ? `${total} ${1 === total ? "comment" : "comments"}` : "No comments yet";
+    };
     const paint = () => {
       list.replaceChildren();
+      countUp();
       if (!comments.length) {
-        const empty = document.createElement("p");
-        empty.className = "atwork-comments__empty";
-        empty.textContent = "No comments yet.";
-        list.appendChild(empty);
+        list.appendChild(emptyState2());
         return;
       }
+      let previous = null;
       for (const comment of comments) {
-        list.appendChild(render(comment));
+        const grouped = null !== previous && previous.author === comment.author && previous.isMine === comment.isMine && withinTheHour(previous.date, comment.date);
+        list.appendChild(render(comment, grouped));
+        previous = comment;
       }
       list.scrollTop = list.scrollHeight;
     };
-    const render = (comment) => {
+    const emptyState2 = () => {
+      const empty = document.createElement("div");
+      empty.className = "atwork-comments__empty";
+      const mark = bubbleIcon(false, 28);
+      mark.classList.add("atwork-comments__empty-icon");
+      const line = document.createElement("p");
+      line.className = "atwork-comments__empty-title";
+      line.textContent = "No comments yet";
+      const hint = document.createElement("p");
+      hint.className = "atwork-comments__empty-hint";
+      hint.textContent = "Start the conversation about this task.";
+      empty.append(mark, line, hint);
+      return empty;
+    };
+    const render = (comment, grouped) => {
       const row = document.createElement("article");
       row.className = "atwork-comments__item";
-      const head = document.createElement("div");
-      head.className = "atwork-comments__head";
-      if (comment.avatar) {
+      row.classList.toggle("is-mine", comment.isMine);
+      row.classList.toggle("is-grouped", grouped);
+      const gutter = document.createElement("div");
+      gutter.className = "atwork-comments__gutter";
+      if (!grouped && comment.avatar) {
         const img = document.createElement("img");
         img.src = comment.avatar;
         img.alt = "";
-        img.width = 18;
-        img.height = 18;
+        img.width = 24;
+        img.height = 24;
         img.loading = "lazy";
-        head.appendChild(img);
+        gutter.appendChild(img);
       }
-      const who = document.createElement("strong");
-      who.textContent = comment.author;
-      head.appendChild(who);
-      const when = document.createElement("time");
-      when.dateTime = comment.date;
-      when.textContent = relative(comment.date);
-      when.title = new Date(comment.date).toLocaleString();
-      head.appendChild(when);
+      const bubble = document.createElement("div");
+      bubble.className = "atwork-comments__bubble";
+      if (!grouped) {
+        const head = document.createElement("div");
+        head.className = "atwork-comments__head";
+        const who = document.createElement("strong");
+        who.textContent = comment.isMine ? "You" : comment.author;
+        const when = document.createElement("time");
+        when.dateTime = comment.date;
+        when.textContent = relative(comment.date);
+        when.title = new Date(comment.date).toLocaleString();
+        head.append(who, when);
+        bubble.appendChild(head);
+      }
+      const body = document.createElement("p");
+      body.className = "atwork-comments__body";
+      body.textContent = comment.content;
+      bubble.appendChild(body);
       if (comment.canDelete) {
         const remove = document.createElement("button");
         remove.type = "button";
         remove.className = "atwork-comments__delete";
-        remove.setAttribute("aria-label", `Delete ${comment.author}’s comment`);
-        remove.textContent = "×";
+        remove.setAttribute("aria-label", `Delete this comment by ${comment.author}`);
+        remove.title = "Delete";
+        remove.appendChild(trashIcon());
         remove.addEventListener("click", () => {
           void deleteComment(comment.id).then(() => {
             comments = comments.filter((c) => c.id !== comment.id);
@@ -740,16 +831,13 @@
             onChange2(comments.length);
           }).catch(() => void 0);
         });
-        head.appendChild(remove);
+        bubble.appendChild(remove);
       }
-      const body = document.createElement("p");
-      body.className = "atwork-comments__body";
-      body.textContent = comment.content;
-      row.append(head, body);
+      row.append(gutter, bubble);
       return row;
     };
     const loading = document.createElement("p");
-    loading.className = "atwork-comments__empty";
+    loading.className = "atwork-comments__loading";
     loading.textContent = "Loading…";
     list.appendChild(loading);
     void fetchComments(taskId).then((loaded) => {
@@ -764,6 +852,10 @@
         paint();
       }
     });
+    const resize = () => {
+      input.style.height = "auto";
+      input.style.height = `${Math.min(input.scrollHeight, 110)}px`;
+    };
     const submit = () => {
       const content = input.value.trim();
       if (!content) {
@@ -771,18 +863,21 @@
       }
       input.disabled = true;
       send.disabled = true;
+      panel.classList.add("is-sending");
       void addComment(taskId, content).then((comment) => {
         if (open?.panel !== panel) {
           return;
         }
         comments.push(comment);
         input.value = "";
+        resize();
         paint();
         onChange2(comments.length);
       }).catch(() => void 0).finally(() => {
         if (open?.panel === panel) {
+          panel.classList.remove("is-sending");
           input.disabled = false;
-          send.disabled = false;
+          send.disabled = "" === input.value.trim();
           input.focus();
         }
       });
@@ -791,13 +886,22 @@
       event.preventDefault();
       submit();
     });
+    input.addEventListener("input", () => {
+      resize();
+      send.disabled = "" === input.value.trim();
+    });
     input.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" && !event.shiftKey) {
+      if ("Enter" === event.key && !event.shiftKey) {
         event.preventDefault();
         submit();
       }
     });
     input.focus();
+  }
+  function withinTheHour(earlier, later) {
+    const a = new Date(earlier).getTime();
+    const b = new Date(later).getTime();
+    return Number.isFinite(a) && Number.isFinite(b) && Math.abs(b - a) < 36e5;
   }
   function relative(iso) {
     const then = new Date(iso).getTime();
@@ -820,12 +924,12 @@
   }
   function position(panel, anchor) {
     const rect = anchor.getBoundingClientRect();
-    const width = 280;
-    const height = 300;
+    const width = 320;
+    const height = 380;
     panel.style.width = `${width}px`;
     const left = Math.min(Math.max(8, rect.left - width / 2), window.innerWidth - width - 8);
-    const below = rect.bottom + 6;
-    const top = below + height > window.innerHeight ? Math.max(8, rect.top - height - 6) : below;
+    const below = rect.bottom + 8;
+    const top = below + height > window.innerHeight ? Math.max(8, rect.top - height - 8) : below;
     panel.style.left = `${left}px`;
     panel.style.top = `${top}px`;
   }
@@ -914,35 +1018,35 @@
     input.addEventListener("input", () => opts.onInput(input.value));
     return input;
   }
-  function openInShell(url, title, icon = "dashicons-admin-post") {
+  function openInShell(url, title, icon2 = "dashicons-admin-post") {
     const shell = getShell();
     if (!url || !shell?.windowManager?.open || !shell.deriveWindowId) {
       return false;
     }
     try {
       const id = shell.deriveWindowId(url);
-      void shell.windowManager.open({ id, baseId: id, url, title, icon });
+      void shell.windowManager.open({ id, baseId: id, url, title, icon: icon2 });
       return true;
     } catch {
       return false;
     }
   }
-  function routeLinkIntoShell(anchor, title, icon) {
+  function routeLinkIntoShell(anchor, title, icon2) {
     anchor.addEventListener("click", (event) => {
       if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
         return;
       }
-      if (openInShell(anchor.href, title, icon)) {
+      if (openInShell(anchor.href, title, icon2)) {
         event.preventDefault();
       }
     });
     anchor.addEventListener("pointerdown", (event) => event.stopPropagation());
   }
-  function openUrl(url, title, icon) {
+  function openUrl(url, title, icon2) {
     if (!url) {
       return;
     }
-    if (openInShell(url, title, icon)) {
+    if (openInShell(url, title, icon2)) {
       return;
     }
     window.open(url, "_blank", "noopener");
@@ -1569,6 +1673,11 @@
      *
      * Always present, even at zero. A thread you can only find once somebody
      * else has started it is a thread nobody starts.
+     *
+     * Sized to sit level with the avatar beside it rather than shrunk to fit
+     * around the text: this was a 10px emoji at 45% opacity, which is a target
+     * nobody can hit and an affordance nobody notices. It is now the same height
+     * as the assign control, so the meta row reads as a row of controls.
      */
     commentControl(task) {
       const button = document.createElement("button");
@@ -1576,35 +1685,28 @@
       button.className = "atwork-card__comments";
       button.setAttribute("aria-haspopup", "dialog");
       button.setAttribute("aria-expanded", "false");
-      button.setAttribute(
-        "aria-label",
-        task.comments ? `${task.comments} comments. Open the thread.` : "Comment on this task"
-      );
-      button.title = task.comments ? `${task.comments} comments` : "Comment";
-      const icon = document.createElement("span");
-      icon.className = "atwork-card__comments-icon";
-      icon.setAttribute("aria-hidden", "true");
-      icon.textContent = "💬";
-      button.appendChild(icon);
-      if (task.comments) {
-        const count = document.createElement("span");
-        count.textContent = String(task.comments);
-        button.appendChild(count);
-      } else {
-        button.classList.add("is-empty");
-      }
+      const count = document.createElement("span");
+      count.className = "atwork-card__comments-count";
+      const paint = (total) => {
+        button.classList.toggle("is-empty", 0 === total);
+        button.setAttribute(
+          "aria-label",
+          total ? `${total} ${1 === total ? "comment" : "comments"}. Open the thread.` : "Comment on this task"
+        );
+        button.title = total ? `${total} ${1 === total ? "comment" : "comments"}` : "Start the conversation";
+        button.querySelector("svg")?.remove();
+        button.prepend(bubbleIcon(total > 0));
+        count.textContent = total ? String(total) : "";
+        count.hidden = !total;
+      };
+      button.appendChild(count);
+      paint(task.comments);
       button.addEventListener("pointerdown", (ev) => ev.stopPropagation());
       button.addEventListener("click", (ev) => {
         ev.stopPropagation();
-        openComments(button, task.id, (count) => {
-          this.applyTask({ ...task, comments: count });
-          button.querySelector("span:not(.atwork-card__comments-icon)")?.remove();
-          button.classList.toggle("is-empty", count === 0);
-          if (count) {
-            const el = document.createElement("span");
-            el.textContent = String(count);
-            button.appendChild(el);
-          }
+        openComments(button, task.id, task.title, (total) => {
+          this.applyTask({ ...task, comments: total });
+          paint(total);
         });
       });
       return button;
