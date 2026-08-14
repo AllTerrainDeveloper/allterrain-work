@@ -10,7 +10,13 @@
  * License:           GPL-2.0-or-later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain:       allterrain-work
- * Domain Path:       /languages
+ *
+ * No `Domain Path` header: it names the folder translations are loaded from, and
+ * this plugin ships none. Pointing it at a `/languages` directory that does not
+ * exist is a promise the package does not keep, and WordPress.org's Plugin Check
+ * rejects it as one. Translations from the plugin directory land in
+ * `WP_LANG_DIR` and need no header at all; add one only if `.mo` files ever ship
+ * inside the plugin itself.
  *
  * AllTerrain Work is a work tracker in the Monday.com shape -- projects, tasks, a
  * status column you drag cards between -- built as an OpenStation application.

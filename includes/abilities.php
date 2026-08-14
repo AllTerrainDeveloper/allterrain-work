@@ -13,10 +13,11 @@
  * board use. That is the point: one implementation, three front doors, and no
  * chance of the agent path drifting from the human one.
  *
- * The whole file is gated on `function_exists( 'wp_register_ability' )`. The API
- * landed in WordPress 6.9 and is also shipped by plugins that bundle it, so a
- * site can have it from either direction or from neither -- and a site with
- * neither should lose the agent surface, not fatal.
+ * Every registration goes through `atwork_register_ability()`, which is guarded
+ * on `function_exists( 'wp_register_ability' )`. The API landed in WordPress 6.9
+ * and is also shipped by plugins that bundle it, so a site can have it from
+ * either direction or from neither -- and a site with neither should lose the
+ * agent surface, not fatal.
  *
  * @package AllTerrain_Work
  */
@@ -25,6 +26,56 @@ defined( 'ABSPATH' ) || exit;
 
 add_action( 'wp_abilities_api_categories_init', 'atwork_register_ability_category' );
 add_action( 'wp_abilities_api_init', 'atwork_register_abilities' );
+
+/**
+ * Registers one ability, if this site has the API to register it with.
+ *
+ * A one-line wrapper around `wp_register_ability()` that exists to put the
+ * `function_exists()` guard *at the call site*.
+ *
+ * The guard used to be a single early return at the top of the function that
+ * registers all fifteen. That is exactly equivalent at runtime and reads
+ * better, but WordPress.org's Plugin Check does not follow it: it looks for the
+ * call to be lexically inside a conditional, reports every one of the fifteen
+ * as "requires WordPress 6.9, but your plugin supports 6.0", and fails the
+ * review queue. Raising `Requires at least` to 6.9 would answer the tool by
+ * lying to users -- the board works perfectly on 6.0 and simply has no agent
+ * surface there, which is the whole reason the API is optional.
+ *
+ * So the guard moved to where a static analyser can see it. One check per
+ * registration is a rounding error next to building the argument arrays, and
+ * this way the honest answer and the passing answer are the same answer.
+ *
+ * @since 0.1.0
+ *
+ * @param string $name Fully-qualified ability name.
+ * @param array  $args Ability arguments.
+ * @return void
+ */
+function atwork_register_ability( $name, $args ) {
+	if ( function_exists( 'wp_register_ability' ) ) {
+		wp_register_ability( $name, $args );
+	}
+}
+
+/**
+ * Registers the ability category, if this site has the API for it.
+ *
+ * Separate from `atwork_register_ability()` because the two APIs can in
+ * principle arrive apart, and because it is guarded for the same reason -- see
+ * that function.
+ *
+ * @since 0.1.0
+ *
+ * @param string $name Category name.
+ * @param array  $args Category arguments.
+ * @return void
+ */
+function atwork_register_category( $name, $args ) {
+	if ( function_exists( 'wp_register_ability_category' ) ) {
+		wp_register_ability_category( $name, $args );
+	}
+}
 
 /**
  * Registers the category the abilities below belong to.
@@ -40,11 +91,7 @@ add_action( 'wp_abilities_api_init', 'atwork_register_abilities' );
  * @return void
  */
 function atwork_register_ability_category() {
-	if ( ! function_exists( 'wp_register_ability_category' ) ) {
-		return;
-	}
-
-	wp_register_ability_category(
+	atwork_register_category(
 		'allterrain-work',
 		array(
 			'label'       => __( 'Work management', 'allterrain-work' ),
@@ -64,16 +111,12 @@ function atwork_register_ability_category() {
  * @return void
  */
 function atwork_register_abilities() {
-	if ( ! function_exists( 'wp_register_ability' ) ) {
-		return;
-	}
-
 	$read  = static function () {
 		return current_user_can( 'edit_posts' );
 	};
 	$write = $read;
 
-	wp_register_ability(
+	atwork_register_ability(
 		'allterrain-work/list-projects',
 		array(
 			'label'               => __( 'List projects', 'allterrain-work' ),
@@ -97,7 +140,7 @@ function atwork_register_abilities() {
 		)
 	);
 
-	wp_register_ability(
+	atwork_register_ability(
 		'allterrain-work/list-statuses',
 		array(
 			'label'               => __( 'List board statuses', 'allterrain-work' ),
@@ -129,7 +172,7 @@ function atwork_register_abilities() {
 		)
 	);
 
-	wp_register_ability(
+	atwork_register_ability(
 		'allterrain-work/list-tasks',
 		array(
 			'label'               => __( 'List tasks', 'allterrain-work' ),
@@ -172,7 +215,7 @@ function atwork_register_abilities() {
 		)
 	);
 
-	wp_register_ability(
+	atwork_register_ability(
 		'allterrain-work/create-project',
 		array(
 			'label'               => __( 'Create a project', 'allterrain-work' ),
@@ -202,7 +245,7 @@ function atwork_register_abilities() {
 		)
 	);
 
-	wp_register_ability(
+	atwork_register_ability(
 		'allterrain-work/create-status',
 		array(
 			'label'               => __( 'Add a board column', 'allterrain-work' ),
@@ -244,7 +287,7 @@ function atwork_register_abilities() {
 		)
 	);
 
-	wp_register_ability(
+	atwork_register_ability(
 		'allterrain-work/create-task',
 		array(
 			'label'               => __( 'Create a task', 'allterrain-work' ),
@@ -300,7 +343,7 @@ function atwork_register_abilities() {
 		)
 	);
 
-	wp_register_ability(
+	atwork_register_ability(
 		'allterrain-work/update-task',
 		array(
 			'label'               => __( 'Update a task', 'allterrain-work' ),
@@ -343,7 +386,7 @@ function atwork_register_abilities() {
 		)
 	);
 
-	wp_register_ability(
+	atwork_register_ability(
 		'allterrain-work/move-task',
 		array(
 			'label'               => __( 'Move a task to a status', 'allterrain-work' ),
@@ -383,7 +426,7 @@ function atwork_register_abilities() {
 		)
 	);
 
-	wp_register_ability(
+	atwork_register_ability(
 		'allterrain-work/my-work',
 		array(
 			'label'               => __( 'What is on my plate', 'allterrain-work' ),
@@ -443,7 +486,7 @@ function atwork_register_abilities() {
 		)
 	);
 
-	wp_register_ability(
+	atwork_register_ability(
 		'allterrain-work/attach-to-task',
 		array(
 			'label'               => __( 'Attach something to a task', 'allterrain-work' ),
@@ -478,7 +521,7 @@ function atwork_register_abilities() {
 		)
 	);
 
-	wp_register_ability(
+	atwork_register_ability(
 		'allterrain-work/detach-from-task',
 		array(
 			'label'               => __( 'Detach something from a task', 'allterrain-work' ),
@@ -512,7 +555,7 @@ function atwork_register_abilities() {
 		)
 	);
 
-	wp_register_ability(
+	atwork_register_ability(
 		'allterrain-work/trash-project',
 		array(
 			'label'               => __( 'Move a project to the trash', 'allterrain-work' ),
@@ -550,7 +593,7 @@ function atwork_register_abilities() {
 		)
 	);
 
-	wp_register_ability(
+	atwork_register_ability(
 		'allterrain-work/comment-on-task',
 		array(
 			'label'               => __( 'Comment on a task', 'allterrain-work' ),
@@ -590,7 +633,7 @@ function atwork_register_abilities() {
 		)
 	);
 
-	wp_register_ability(
+	atwork_register_ability(
 		'allterrain-work/trash-task',
 		array(
 			'label'               => __( 'Move a task to the trash', 'allterrain-work' ),

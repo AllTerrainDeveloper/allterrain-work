@@ -21,6 +21,45 @@ const root = resolve( dirname( fileURLToPath( import.meta.url ) ), '..' );
 const slug = 'allterrain-work';
 
 /**
+ * Findings this plugin has looked at and decided are wrong about it.
+ *
+ * Kept deliberately small and deliberately loud: accepted findings are still
+ * printed on every run, under their own heading, so an exemption can never
+ * quietly become the reason nobody notices a real problem. Each one carries the
+ * reason it is here, and a finding that no longer matches anything is reported
+ * as stale rather than lingering.
+ *
+ * A `file` of `null` matches anywhere.
+ */
+const ACCEPTED = [
+	{
+		code: 'wp_function_not_compatible_with_requires_wp',
+		file: 'includes/abilities.php',
+		why:
+			'The Abilities API is optional and feature-detected. Both calls sit inside ' +
+			'`if ( function_exists( … ) )`, and the two hooks that reach them do not ' +
+			'exist before 6.9, so on 6.0 the code is unreachable twice over. The sniff ' +
+			'compares the function against `Requires at least` and models neither guard. ' +
+			'The alternative is raising `Requires at least` to 6.9, which would deny the ' +
+			'board to every 6.0–6.8 site to describe a surface those sites were never ' +
+			'going to be offered.',
+	},
+];
+
+/**
+ * Whether a finding has been accepted, and why.
+ *
+ * @param {Object} finding One Plugin Check finding.
+ * @return {Object|undefined} The matching entry, if any.
+ */
+function acceptedReason( finding ) {
+	return ACCEPTED.find(
+		( entry ) =>
+			entry.code === finding.code && ( null === entry.file || entry.file === finding.file )
+	);
+}
+
+/**
  * Splits the repository root into what ships and what does not.
  *
  * wp-env maps the *repository* into the site rather than the packaged plugin,
@@ -177,16 +216,50 @@ if ( 0 !== report.status && ! report.stdout.includes( '[' ) ) {
 
 const findings = parseFindings( report.stdout );
 
-if ( 0 === findings.length ) {
-	process.stdout.write( `[${ slug }] Plugin Check passed — no errors found.\n` );
+const accepted = findings.filter( ( finding ) => acceptedReason( finding ) );
+const blocking = findings.filter( ( finding ) => ! acceptedReason( finding ) );
+
+// Printed every run, not only when something fails. An exemption nobody sees is
+// an exemption nobody re-examines.
+if ( accepted.length ) {
+	process.stdout.write(
+		`[${ slug }] ${ accepted.length } finding${ 1 === accepted.length ? '' : 's' } accepted:\n\n`
+	);
+
+	for ( const finding of accepted ) {
+		const where = finding.line ? `${ finding.file }:${ finding.line }` : finding.file;
+
+		process.stdout.write( `  ${ where }\n    [${ finding.code }] ${ finding.message }\n` );
+		process.stdout.write( `    Accepted: ${ acceptedReason( finding ).why }\n\n` );
+	}
+}
+
+// An entry that stopped matching has outlived whatever it was excusing, and is
+// now only a hole in the gate.
+const stale = ACCEPTED.filter(
+	( entry ) => ! findings.some( ( finding ) => acceptedReason( finding ) === entry )
+);
+
+for ( const entry of stale ) {
+	process.stdout.write(
+		`[${ slug }] Note: the accepted finding "${ entry.code }" in ` +
+			`${ entry.file ?? 'any file' } no longer occurs. Drop it from ACCEPTED in ` +
+			'bin/plugin-check.mjs.\n'
+	);
+}
+
+if ( 0 === blocking.length ) {
+	process.stdout.write(
+		`[${ slug }] Plugin Check passed — no blocking errors.\n`
+	);
 	process.exit( 0 );
 }
 
 process.stderr.write(
-	`[${ slug }] Plugin Check found ${ findings.length } error${ 1 === findings.length ? '' : 's' }:\n\n`
+	`[${ slug }] Plugin Check found ${ blocking.length } error${ 1 === blocking.length ? '' : 's' }:\n\n`
 );
 
-for ( const finding of findings ) {
+for ( const finding of blocking ) {
 	const where = finding.line ? `${ finding.file }:${ finding.line }` : finding.file;
 
 	process.stderr.write( `  ${ where }\n    [${ finding.code }] ${ finding.message }\n\n` );
