@@ -1,0 +1,34 @@
+{
+	"name": "allterrain-work",
+	"version": "0.1.0",
+	"private": true,
+	"description": "Projects and tasks on a drag-and-drop board, as an OpenStation desktop app.",
+	"license": "GPL-2.0-or-later",
+	"type": "module",
+	"engines": {
+		"node": ">=20"
+	},
+	"scripts": {
+		"build": "npm run build:bundles && npm run deploy",
+		"build:bundles": "npm run build:board && npm run build:widget && npm run build:editor && npm run build:explorer",
+		"build:board": "ATWORK_TARGET=board vite build --mode development && ATWORK_TARGET=board vite build --mode production",
+		"build:widget": "ATWORK_TARGET=widget vite build --mode development && ATWORK_TARGET=widget vite build --mode production",
+		"dev": "ATWORK_TARGET=board vite build --mode development --watch",
+		"typecheck": "tsc --noEmit",
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"deploy": "node bin/deploy.mjs",
+		"plugin:build": "npm run typecheck && npm run test && npm run build:bundles",
+		"test:php": "node bin/test-php.mjs",
+		"lint:php": "./vendor/bin/phpcs",
+		"lint:php:fix": "./vendor/bin/phpcbf",
+		"build:editor": "ATWORK_TARGET=editor vite build --mode development && ATWORK_TARGET=editor vite build --mode production",
+		"build:explorer": "ATWORK_TARGET=explorer vite build --mode development && ATWORK_TARGET=explorer vite build --mode production"
+	},
+	"devDependencies": {
+		"jsdom": "^25.0.1",
+		"typescript": "^5.7.2",
+		"vite": "^5.4.11",
+		"vitest": "^2.1.8"
+	}
+}

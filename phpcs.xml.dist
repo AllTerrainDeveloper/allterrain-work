@@ -1,0 +1,75 @@
+<?xml version="1.0"?>
+<ruleset name="AllTerrain Work">
+	<description>WordPress Coding Standards for AllTerrain Work.</description>
+
+	<file>.</file>
+
+	<exclude-pattern>/vendor/*</exclude-pattern>
+	<exclude-pattern>/node_modules/*</exclude-pattern>
+	<exclude-pattern>/assets/js/*</exclude-pattern>
+	<exclude-pattern>/dist/*</exclude-pattern>
+
+	<arg name="extensions" value="php"/>
+	<arg name="basepath" value="."/>
+	<arg name="colors"/>
+	<arg value="ps"/>
+
+	<rule ref="WordPress">
+		<!--
+			The board is a JSON API, not a template: every payload key is read
+			by TypeScript that expects `projectId`, not `project_id`. Renaming
+			them to satisfy the sniff would rename them on the wire.
+		-->
+		<exclude name="WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase"/>
+	</rule>
+
+	<config name="minimum_wp_version" value="6.0"/>
+	<config name="testVersion" value="7.4-"/>
+
+	<rule ref="WordPress.WP.I18n">
+		<properties>
+			<property name="text_domain" type="array">
+				<element value="allterrain-work"/>
+			</property>
+		</properties>
+	</rule>
+
+	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
+		<properties>
+			<property name="prefixes" type="array">
+				<element value="atwork"/>
+				<element value="ATWORK"/>
+			</property>
+		</properties>
+	</rule>
+
+	<!--
+		The test bootstrap deliberately defines unprefixed functions: they
+		impersonate OpenStation's public API so the integration is exercised
+		rather than skipped, and prefixing them would defeat the point.
+	-->
+	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
+		<exclude-pattern>/tests/phpunit/bootstrap.php</exclude-pattern>
+	</rule>
+
+	<rule ref="WordPress.Files.FileName">
+		<!-- Test class files follow the core suite's camelCase convention. -->
+		<exclude-pattern>/tests/*</exclude-pattern>
+	</rule>
+
+	<!--
+		Test methods document themselves through their names and their `@covers`
+		annotation; core's own suite does not require a short description on
+		every one, and a mandatory one-line restatement of the method name is
+		noise that makes the genuinely explanatory docblocks harder to spot.
+	-->
+	<rule ref="Squiz.Commenting.FunctionComment.Missing">
+		<exclude-pattern>/tests/*</exclude-pattern>
+	</rule>
+	<rule ref="Squiz.Commenting.FunctionComment.MissingParamComment">
+		<exclude-pattern>/tests/*</exclude-pattern>
+	</rule>
+	<rule ref="Generic.Commenting.DocComment.MissingShort">
+		<exclude-pattern>/tests/*</exclude-pattern>
+	</rule>
+</ruleset>

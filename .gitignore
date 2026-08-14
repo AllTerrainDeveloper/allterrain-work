@@ -1,48 +1,19 @@
-# Wordpress - ignore core, configuration, examples, uploads and logs.
-# https://github.com/github/gitignore/blob/main/WordPress.gitignore
+# This repository is a single plugin, not a WordPress install, so the usual
+# WordPress.gitignore (which excludes /wp-admin, /wp-includes, uploads and so
+# on) has nothing to match here and would only hide what it is for.
 
-# Core
-#
-# Note: if you want to stage/commit WP core files
-# you can delete this whole section/until Configuration.
-/wp-admin/
-/wp-content/index.php
-/wp-content/languages
-/wp-content/plugins/index.php
-/wp-content/themes/index.php
-/wp-includes/
-/index.php
-/license.txt
-/readme.html
-/wp-*.php
-/xmlrpc.php
+# Dependency trees. `vendor/` is dev tooling only — the plugin has no runtime
+# PHP dependencies.
+node_modules/
+vendor/
 
-# Configuration
-wp-config.php
+# Output of the release packaging step.
+dist/
 
-# Example themes
-/wp-content/themes/twenty*/
+# Built bundles are deliberately *not* ignored: this repo is installable as a
+# plugin straight from a clone or a zip, and a plugin whose JavaScript has to be
+# compiled before it runs is not installable.
 
-# Example plugin
-/wp-content/plugins/hello.php
-
-# Uploads
-/wp-content/uploads/
-
-# Log files
+.DS_Store
+.phpunit.result.cache
 *.log
-
-# htaccess
-/.htaccess
-
-# All plugins
-#
-# Note: If you wish to whitelist plugins,
-# uncomment the next line
-#/wp-content/plugins
-
-# All themes
-#
-# Note: If you wish to whitelist themes,
-# uncomment the next line
-#/wp-content/themes

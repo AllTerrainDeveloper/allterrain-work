@@ -1,0 +1,1293 @@
+/**
+ * AllTerrain Work.
+ *
+ * Every colour resolves through an OpenStation token first (`--os-ui-fg`,
+ * `--os-window-bg`, …) with a literal fallback for the standalone admin page,
+ * where those names do not exist. That order matters both ways round: reading
+ * the token means a desktop theme or an accent change reskins the board for
+ * free, and the fallback means the same stylesheet still renders on a plain
+ * wp-admin screen.
+ *
+ * Logical properties throughout (`margin-inline-start`, `inset-inline-end`), so
+ * the board mirrors correctly in RTL locales without a second stylesheet.
+ */
+
+.atwork {
+	--atwork-gap: 12px;
+	--atwork-radius: 10px;
+	--atwork-fg: var( --os-ui-fg, #1e1e1e );
+	--atwork-fg-muted: var( --os-ui-fg-muted, #646970 );
+	--atwork-bg: var( --os-window-bg, #f0f0f1 );
+	--atwork-surface: var( --os-ui-surface, #fff );
+	--atwork-border: var( --os-ui-border, rgba( 0, 0, 0, 0.12 ) );
+	--atwork-accent: var( --os-ui-accent, #2271b1 );
+	--atwork-danger: var( --os-ui-danger, #d63638 );
+
+	display: flex;
+	flex-direction: column;
+	block-size: 100%;
+	min-block-size: 0;
+	color: var( --atwork-fg );
+	font-size: 13px;
+	line-height: 1.5;
+}
+
+/* -- Toolbar ------------------------------------------------------------ */
+
+.atwork__toolbar {
+	flex: 0 0 auto;
+	padding: var( --atwork-gap );
+	border-block-end: 1px solid var( --atwork-border );
+}
+
+.atwork__toolbar-inner {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	/*
+	 * Centre, and give every control the same height. The shell's components
+	 * size themselves, so without a shared floor a select sits a few pixels
+	 * taller than the button beside it and the row reads as slightly broken —
+	 * which is exactly what a toolbar must not do, since it is the first thing
+	 * anyone looks at.
+	 */
+	align-items: center;
+}
+
+.atwork__toolbar-inner > * {
+	min-block-size: 32px;
+}
+
+/* The fallback controls, sized to sit level with the shell's components. */
+.atwork__toolbar-inner button.atwork__button,
+.atwork__toolbar-inner button.atwork__toggle {
+	min-block-size: 34px;
+}
+
+.atwork__toolbar-inner os-select,
+.atwork__toolbar-inner os-text-field {
+	display: inline-flex;
+	align-items: center;
+}
+
+.atwork__toolbar-inner os-text-field {
+	inline-size: 180px;
+}
+
+.atwork__spacer {
+	flex: 1 1 auto;
+}
+
+.atwork__loading {
+	color: var( --atwork-fg-muted );
+}
+
+/*
+ * The shell is a real wp-admin document, so core's forms.css reaches these
+ * controls with a (0,1,1) selector that outranks a single class of our own.
+ * Matching its specificity is what keeps a select from rendering as a white
+ * core-chrome box on a dark window surface.
+ */
+/*
+ * Scoped to the native fallbacks. `select` and `input` need this specificity to
+ * beat core's `forms.css`; a component host needs none of it and would wear a
+ * second border if these reached it.
+ */
+.atwork select.atwork__select[ class ],
+.atwork input.atwork__search[ type ] {
+	min-block-size: 30px;
+	padding-inline: 8px;
+	border: 1px solid var( --atwork-border );
+	border-radius: 6px;
+	background: var( --atwork-surface );
+	color: var( --atwork-fg );
+	box-shadow: none;
+}
+
+.atwork input.atwork__search[ type ] {
+	inline-size: 180px;
+}
+
+/*
+ * Scoped to real `button` elements. Unscoped, these reach an `<os-button>` host
+ * that happens to carry the class and layer a second border and radius over the
+ * component's own — a doubled edge with notched corners.
+ */
+button.atwork__button,
+button.atwork__toggle {
+	min-block-size: 30px;
+	padding-inline: 12px;
+	border: 1px solid var( --atwork-border );
+	border-radius: 6px;
+	background: var( --atwork-surface );
+	color: var( --atwork-fg );
+	cursor: pointer;
+	font: inherit;
+}
+
+button.atwork__button:hover,
+button.atwork__toggle:hover {
+	border-color: var( --atwork-accent );
+}
+
+button.atwork__toggle[ aria-pressed='true' ] {
+	border-color: var( --atwork-accent );
+	background: var( --atwork-accent );
+	color: #fff;
+}
+
+button.atwork__button:focus-visible,
+button.atwork__toggle:focus-visible,
+.atwork-card:focus-visible {
+	outline: 2px solid var( --atwork-accent );
+	outline-offset: 2px;
+}
+
+/* -- Inline prompts, confirms and notices -------------------------------- */
+
+/*
+ * These exist so the board never calls `window.prompt` / `confirm` / `alert`.
+ * A browser modal blocks the whole page, and inside the shell the page is the
+ * entire desktop -- every other window freezes with it.
+ */
+
+.atwork__inline-host[ hidden ],
+.atwork__project-host[ hidden ] {
+	display: none;
+}
+
+.atwork-inline {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	align-items: center;
+	padding: 10px var( --atwork-gap );
+	border-block-end: 1px solid var( --atwork-border );
+	background: color-mix( in srgb, var( --atwork-accent ) 7%, transparent );
+}
+
+.atwork-inline--error {
+	background: color-mix( in srgb, var( --atwork-danger ) 12%, transparent );
+}
+
+.atwork-inline--success {
+	background: color-mix( in srgb, #00c875 12%, transparent );
+}
+
+.atwork-inline__label {
+	display: flex;
+	flex: 1 1 260px;
+	gap: 8px;
+	align-items: center;
+	font-weight: 600;
+}
+
+.atwork .atwork-inline__input[ type ] {
+	flex: 1 1 auto;
+	min-inline-size: 140px;
+	min-block-size: 30px;
+	padding-inline: 8px;
+	border: 1px solid var( --atwork-accent );
+	border-radius: 6px;
+	background: var( --atwork-surface );
+	color: var( --atwork-fg );
+	font-weight: 400;
+}
+
+.atwork-inline__message {
+	flex: 1 1 auto;
+	margin: 0;
+}
+
+.atwork-inline__close {
+	border: 0;
+	background: transparent;
+	color: inherit;
+	cursor: pointer;
+	font-size: 16px;
+	line-height: 1;
+}
+
+button.atwork__button--primary {
+	border-color: var( --atwork-accent );
+	background: var( --atwork-accent );
+	color: #fff;
+}
+
+button.atwork__button--danger {
+	border-color: var( --atwork-danger );
+	background: var( --atwork-danger );
+	color: #fff;
+}
+
+/* -- Project header ------------------------------------------------------ */
+
+.atwork-project {
+	padding: 12px var( --atwork-gap );
+	border-block-end: 1px solid var( --atwork-border );
+}
+
+.atwork-project__head {
+	display: flex;
+	gap: 10px;
+	align-items: baseline;
+}
+
+.atwork-project__title {
+	margin: 0;
+	font-size: 15px;
+	font-weight: 600;
+}
+
+.atwork-project__percent {
+	flex: 1 1 auto;
+	color: var( --atwork-fg-muted );
+	font-variant-numeric: tabular-nums;
+}
+
+.atwork-project__edit {
+	color: var( --atwork-fg-muted );
+	font-size: 12px;
+}
+
+.atwork-project__description,
+.atwork-project__loading {
+	margin: 6px 0 0;
+	color: var( --atwork-fg-muted );
+	font-size: 12px;
+}
+
+/*
+ * Segmented by column and coloured by it, rather than one completion fill:
+ * "60% done" and "60% done, the rest all Stuck" are different projects, and a
+ * single bar cannot tell them apart.
+ */
+.atwork-project__bar {
+	display: flex;
+	gap: 2px;
+	margin-block-start: 10px;
+	block-size: 8px;
+	border-radius: 999px;
+	overflow: hidden;
+}
+
+.atwork-project__band {
+	min-inline-size: 4px;
+}
+
+.atwork-project__stats {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	align-items: center;
+	margin-block-start: 10px;
+	font-size: 11px;
+	color: var( --atwork-fg-muted );
+}
+
+.atwork-project__stat {
+	padding: 1px 8px;
+	border-radius: 999px;
+	background: var( --atwork-border );
+	font-weight: 600;
+}
+
+.atwork-project__stat.is-overdue {
+	background: var( --atwork-danger );
+	color: #fff;
+}
+
+.atwork-project__members {
+	display: inline-flex;
+	gap: 2px;
+	margin-inline-start: auto;
+}
+
+/*
+ * Overlap the faces slightly, the way every "who is on this" row does -- it
+ * reads as a group rather than a list, and keeps six people inside the width
+ * two chips would take.
+ */
+.atwork-project__members .atwork-card__owner {
+	margin-inline-start: -6px;
+	border: 2px solid var( --atwork-surface );
+	box-sizing: content-box;
+}
+
+.atwork-project__members .atwork-card__owner:first-child {
+	margin-inline-start: 0;
+}
+
+/* -- Columns ------------------------------------------------------------ */
+
+.atwork__board {
+	flex: 1 1 auto;
+	min-block-size: 0;
+	overflow: auto;
+	padding: var( --atwork-gap );
+	background: var( --atwork-bg );
+}
+
+.atwork__columns {
+	display: flex;
+	gap: var( --atwork-gap );
+	align-items: flex-start;
+	min-block-size: 100%;
+}
+
+.atwork-column {
+	display: flex;
+	flex-direction: column;
+	flex: 0 0 260px;
+	max-block-size: 100%;
+	border-radius: var( --atwork-radius );
+	background: var( --atwork-surface );
+	border: 1px solid var( --atwork-border );
+	overflow: hidden;
+}
+
+.atwork-column__header {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+	padding: 10px 12px;
+	font-weight: 600;
+	/*
+	 * The column's own colour as a wash rather than a fill: at full strength a
+	 * user-chosen hex has no contrast guarantee against the text on top of it,
+	 * and a status called "Stuck" is exactly the one somebody paints red.
+	 */
+	background: color-mix( in srgb, var( --atwork-column-color, #c4c4c4 ) 18%, transparent );
+	border-block-end: 3px solid var( --atwork-column-color, #c4c4c4 );
+}
+
+.atwork-column__name {
+	flex: 1 1 auto;
+	margin: 0;
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.atwork-column__count {
+	padding: 1px 7px;
+	border-radius: 999px;
+	background: var( --atwork-border );
+	color: var( --atwork-fg-muted );
+	font-size: 11px;
+	font-weight: 600;
+}
+
+.atwork-column__list {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	/* A short column still has to be a target you can aim at. */
+	min-block-size: 64px;
+	padding: 10px;
+	overflow-y: auto;
+	transition: background-color 120ms ease;
+}
+
+.atwork-column.is-drop-target {
+	background: color-mix( in srgb, var( --atwork-accent ) 10%, transparent );
+	box-shadow: inset 0 0 0 2px var( --atwork-accent );
+}
+
+.atwork-column__empty {
+	margin: 0;
+	padding: 14px 8px;
+	border: 1px dashed var( --atwork-border );
+	border-radius: 8px;
+	color: var( --atwork-fg-muted );
+	text-align: center;
+	font-size: 12px;
+}
+
+.atwork-column__add {
+	padding: 8px 12px;
+	border: 0;
+	border-block-start: 1px solid var( --atwork-border );
+	background: transparent;
+	color: var( --atwork-fg-muted );
+	cursor: pointer;
+	font: inherit;
+	text-align: start;
+}
+
+.atwork-column__add:hover {
+	color: var( --atwork-accent );
+	background: color-mix( in srgb, var( --atwork-accent ) 8%, transparent );
+}
+
+/* -- Cards -------------------------------------------------------------- */
+
+.atwork-card {
+	position: relative;
+	padding: 10px 12px;
+	padding-inline-start: 14px;
+	border: 1px solid var( --atwork-border );
+	border-radius: 8px;
+	background: var( --atwork-surface );
+	cursor: grab;
+	/* Text selection during a drag paints a blue smear across every card the
+	   pointer crosses, and the gesture is a drag, not a read. */
+	user-select: none;
+	touch-action: none;
+}
+
+.atwork-card::before {
+	content: '';
+	position: absolute;
+	inset-block: 8px;
+	inset-inline-start: 5px;
+	inline-size: 3px;
+	border-radius: 3px;
+	background: var( --atwork-fg-muted );
+}
+
+.atwork-card--high::before {
+	background: #fdab3d;
+}
+
+.atwork-card--critical::before {
+	background: var( --atwork-danger );
+}
+
+.atwork-card--low::before {
+	opacity: 0.4;
+}
+
+.atwork-card:hover {
+	border-color: var( --atwork-accent );
+}
+
+.atwork-card__title {
+	margin: 0;
+	font-size: 13px;
+	font-weight: 500;
+	line-height: 1.35;
+}
+
+.atwork-card__meta {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	align-items: center;
+	margin-block-start: 8px;
+	font-size: 11px;
+	color: var( --atwork-fg-muted );
+}
+
+.atwork-card__project {
+	padding: 1px 6px;
+	border-radius: 999px;
+	background: var( --atwork-border );
+}
+
+/*
+ * A project that chose a colour in the editor wears it here. A wash rather than
+ * a fill, with the colour carried on the border and the text: a user-picked hex
+ * has no contrast guarantee behind small text, and a chip is the smallest text
+ * on the card.
+ */
+.atwork-card__project.has-color {
+	background: color-mix( in srgb, var( --atwork-chip-color ) 22%, transparent );
+	box-shadow: inset 0 0 0 1px color-mix( in srgb, var( --atwork-chip-color ) 55%, transparent );
+	color: var( --atwork-fg );
+}
+
+.atwork-card__due.is-overdue {
+	color: var( --atwork-danger );
+	font-weight: 600;
+}
+
+.atwork-card__owner {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	inline-size: 22px;
+	block-size: 22px;
+	margin-inline-start: auto;
+	border-radius: 50%;
+	overflow: hidden;
+}
+
+.atwork-card__owner img {
+	inline-size: 100%;
+	block-size: 100%;
+	object-fit: cover;
+}
+
+.atwork-card__owner--initials {
+	background: var( --atwork-accent );
+	color: #fff;
+	font-size: 10px;
+	font-weight: 600;
+}
+
+/*
+ * A card lit up as the assignee target for a dropped user. Distinct from the
+ * column's own drop state -- the two can be visible at once while an avatar
+ * crosses a column on its way to a card, and if they looked the same the user
+ * could not tell which one was about to receive it.
+ */
+/*
+ * A card the pointer is over while a *task* is in flight. Deliberately quieter
+ * than the assign state: this one fires constantly during an ordinary drag
+ * across a full column, and a loud highlight on every card the cursor crosses
+ * reads as an error rather than as guidance.
+ */
+.atwork-card.is-drop-near {
+	border-color: var( --atwork-accent );
+}
+
+.atwork-card.is-assign-target {
+	border-color: var( --atwork-accent );
+	box-shadow: 0 0 0 2px var( --atwork-accent );
+}
+
+/* Link back to the post a task was made from, by dropping it on the board. */
+.atwork-card__source {
+	max-inline-size: 100%;
+	overflow: hidden;
+	color: var( --atwork-fg-muted );
+	text-decoration: none;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.atwork-card__source:hover {
+	color: var( --atwork-accent );
+	text-decoration: underline;
+}
+
+/* -- Comments ------------------------------------------------------------ */
+
+.atwork-card__comments {
+	display: inline-flex;
+	gap: 3px;
+	align-items: center;
+	padding: 0 4px;
+	border: 0;
+	border-radius: 6px;
+	background: transparent;
+	color: var( --atwork-fg-muted );
+	cursor: pointer;
+	font: inherit;
+	font-size: 11px;
+}
+
+.atwork-card__comments-icon {
+	font-size: 10px;
+	/* The glyph carries no information a screen reader needs — the button's
+	   own label says everything — and it renders at wildly different weights
+	   across platforms, so it is dimmed rather than relied on. */
+	opacity: 0.75;
+}
+
+/* A thread nobody has started yet is quieter, but still there to be found. */
+.atwork-card__comments.is-empty {
+	opacity: 0.45;
+}
+
+.atwork-card__comments:hover,
+.atwork-card__comments:focus-visible {
+	opacity: 1;
+	color: var( --atwork-accent );
+	background: color-mix( in srgb, var( --atwork-accent ) 10%, transparent );
+}
+
+.atwork-comments {
+	position: fixed;
+	z-index: 999999;
+	display: flex;
+	flex-direction: column;
+	max-block-size: 300px;
+	padding: 8px;
+	border: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.15 ) );
+	border-radius: 10px;
+	background: var( --os-ui-surface, #fff );
+	color: var( --os-ui-fg, #1e1e1e );
+	box-shadow: 0 12px 34px rgba( 0, 0, 0, 0.32 );
+	font-size: 12px;
+}
+
+.atwork-comments__list {
+	flex: 1 1 auto;
+	min-block-size: 0;
+	overflow-y: auto;
+}
+
+.atwork-comments__item {
+	padding-block: 6px;
+	border-block-end: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.1 ) );
+}
+
+.atwork-comments__item:last-child {
+	border-block-end: 0;
+}
+
+.atwork-comments__head {
+	display: flex;
+	gap: 6px;
+	align-items: center;
+	color: var( --os-ui-fg-muted, #646970 );
+	font-size: 11px;
+}
+
+.atwork-comments__head img {
+	border-radius: 50%;
+}
+
+.atwork-comments__head strong {
+	color: var( --os-ui-fg, #1e1e1e );
+}
+
+.atwork-comments__delete {
+	margin-inline-start: auto;
+	border: 0;
+	background: transparent;
+	color: inherit;
+	cursor: pointer;
+	font: inherit;
+}
+
+.atwork-comments__delete:hover {
+	color: var( --os-ui-danger, #d63638 );
+}
+
+.atwork-comments__body {
+	margin: 3px 0 0;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+
+.atwork-comments__empty {
+	margin: 6px;
+	color: var( --os-ui-fg-muted, #646970 );
+}
+
+.atwork-comments__form {
+	display: flex;
+	gap: 6px;
+	align-items: flex-end;
+	margin-block-start: 6px;
+	padding-block-start: 6px;
+	border-block-start: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.1 ) );
+}
+
+.atwork-comments .atwork-comments__input {
+	flex: 1 1 auto;
+	min-block-size: 34px;
+	padding: 6px 8px;
+	border: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.15 ) );
+	border-radius: 6px;
+	background: var( --os-window-bg, #fff );
+	color: inherit;
+	font: inherit;
+	resize: none;
+}
+
+/* -- Assigning ----------------------------------------------------------- */
+
+.atwork-card__assign {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	margin-inline-start: auto;
+	padding: 0;
+	border: 0;
+	background: transparent;
+	color: var( --atwork-fg-muted );
+	cursor: pointer;
+	font: inherit;
+	line-height: 1;
+}
+
+/*
+ * Unassigned cards show a dashed ring rather than nothing at all. "Who is this
+ * for" is the question you ask of unassigned work most of all, and an
+ * affordance that only appears on hover is one most people never find.
+ */
+.atwork-card__assign.is-empty {
+	inline-size: 22px;
+	block-size: 22px;
+	border: 1px dashed var( --atwork-border );
+	border-radius: 50%;
+	font-size: 13px;
+}
+
+.atwork-card__assign:hover.is-empty,
+.atwork-card__assign:focus-visible.is-empty {
+	border-color: var( --atwork-accent );
+	color: var( --atwork-accent );
+}
+
+.atwork-card__assign:focus-visible {
+	outline: 2px solid var( --atwork-accent );
+	outline-offset: 2px;
+	border-radius: 50%;
+}
+
+/*
+ * Fixed rather than absolute inside the card: a column scrolls and clips its
+ * overflow, so a picker positioned within one would scroll away from its own
+ * anchor or be cut in half by the column edge.
+ */
+.atwork-assignee {
+	position: fixed;
+	z-index: 999999;
+	display: flex;
+	flex-direction: column;
+	max-block-size: 260px;
+	padding: 8px;
+	border: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.15 ) );
+	border-radius: 10px;
+	background: var( --os-ui-surface, #fff );
+	color: var( --os-ui-fg, #1e1e1e );
+	box-shadow: 0 12px 34px rgba( 0, 0, 0, 0.32 );
+	font-size: 12px;
+}
+
+.atwork-assignee .atwork-assignee__search[ type ] {
+	inline-size: 100%;
+	min-block-size: 28px;
+	margin-block-end: 6px;
+	padding-inline: 8px;
+	border: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.15 ) );
+	border-radius: 6px;
+	background: var( --os-window-bg, #fff );
+	color: inherit;
+}
+
+.atwork-assignee__list {
+	flex: 1 1 auto;
+	min-block-size: 0;
+	overflow-y: auto;
+}
+
+.atwork-assignee__option {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+	inline-size: 100%;
+	padding: 5px 6px;
+	border: 0;
+	border-radius: 6px;
+	background: transparent;
+	color: inherit;
+	cursor: pointer;
+	font: inherit;
+	text-align: start;
+}
+
+.atwork-assignee__option:hover,
+.atwork-assignee__option:focus-visible {
+	background: color-mix( in srgb, var( --os-ui-accent, #2271b1 ) 14%, transparent );
+}
+
+.atwork-assignee__option img {
+	border-radius: 50%;
+}
+
+.atwork-assignee__option.is-muted {
+	color: var( --os-ui-fg-muted, #646970 );
+}
+
+.atwork-assignee__tick {
+	margin-inline-start: auto;
+	color: var( --os-ui-accent, #2271b1 );
+}
+
+.atwork-assignee__empty {
+	margin: 6px;
+	color: var( --os-ui-fg-muted, #646970 );
+}
+
+/* -- Attachments and removal on a card ----------------------------------- */
+
+.atwork-card__links {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	margin-block-start: 8px;
+}
+
+.atwork-card__link {
+	display: inline-flex;
+	gap: 4px;
+	align-items: center;
+	max-inline-size: 100%;
+	padding: 1px 4px 1px 2px;
+	border: 1px solid var( --atwork-border );
+	border-radius: 6px;
+	font-size: 11px;
+}
+
+.atwork-card__link img {
+	inline-size: 16px;
+	block-size: 16px;
+	border-radius: 3px;
+	object-fit: cover;
+}
+
+.atwork-card__link-title {
+	max-inline-size: 120px;
+	overflow: hidden;
+	color: var( --atwork-fg-muted );
+	text-decoration: none;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.atwork-card__link-title:hover {
+	color: var( --atwork-accent );
+}
+
+.atwork-card__detach,
+.atwork-card__remove {
+	border: 0;
+	background: transparent;
+	color: var( --atwork-fg-muted );
+	cursor: pointer;
+	font: inherit;
+	line-height: 1;
+}
+
+.atwork-card__detach:hover,
+.atwork-card__remove:hover {
+	color: var( --atwork-danger );
+}
+
+/*
+ * The card's own delete. Hidden until the card is hovered or something inside
+ * it has focus — a × on every card at rest turns a board into a wall of delete
+ * buttons — but always present for keyboard users, who never hover.
+ */
+.atwork-card__remove {
+	position: absolute;
+	inset-block-start: 4px;
+	inset-inline-end: 4px;
+	padding: 0 4px;
+	opacity: 0;
+	font-size: 15px;
+	transition: opacity 120ms ease;
+}
+
+.atwork-card:hover .atwork-card__remove,
+.atwork-card__remove:focus-visible {
+	opacity: 1;
+}
+
+@media ( hover: none ) {
+	/* No hover to reveal it on a touch screen, so it simply stays. */
+	.atwork-card__remove {
+		opacity: 1;
+	}
+}
+
+.atwork-project__delete {
+	border: 0;
+	background: transparent;
+	color: var( --atwork-fg-muted );
+	cursor: pointer;
+	font: inherit;
+	font-size: 12px;
+}
+
+.atwork-project__delete:hover {
+	color: var( --atwork-danger );
+	text-decoration: underline;
+}
+
+/* The card left behind while its ghost is under the cursor. */
+.atwork-card.atwork-is-dragging {
+	opacity: 0.35;
+}
+
+/* Written, not yet confirmed by the server. */
+.atwork-card.is-pending {
+	opacity: 0.6;
+	pointer-events: none;
+}
+
+/*
+ * The ghost the fallback drag manager renders. Inside the shell this rule
+ * applies to the shell's ghost too, since it clones the source element and the
+ * clone keeps its classes.
+ */
+.atwork-drag-ghost {
+	position: fixed;
+	inset-block-start: 0;
+	inset-inline-start: 0;
+	z-index: 999999;
+	pointer-events: none;
+	opacity: 0.95;
+	box-shadow: 0 10px 30px rgba( 0, 0, 0, 0.25 );
+	transform-origin: top left;
+	rotate: 2deg;
+}
+
+/* -- Composer ----------------------------------------------------------- */
+
+.atwork-composer {
+	padding: 10px;
+	border-block-start: 1px solid var( --atwork-border );
+}
+
+.atwork .atwork-composer__input[ type ] {
+	inline-size: 100%;
+	min-block-size: 32px;
+	padding-inline: 8px;
+	border: 1px solid var( --atwork-accent );
+	border-radius: 6px;
+	background: var( --atwork-surface );
+	color: var( --atwork-fg );
+}
+
+/* -- States ------------------------------------------------------------- */
+
+.atwork__skeleton {
+	display: flex;
+	gap: var( --atwork-gap );
+}
+
+.atwork__skeleton-column {
+	flex: 0 0 260px;
+	block-size: 220px;
+	border-radius: var( --atwork-radius );
+	background: var( --atwork-surface );
+	opacity: 0.5;
+	animation: atwork-pulse 1.4s ease-in-out infinite;
+}
+
+.atwork__skeleton-column:nth-child( 2 ) {
+	animation-delay: 0.15s;
+}
+
+.atwork__skeleton-column:nth-child( 3 ) {
+	animation-delay: 0.3s;
+}
+
+.atwork__skeleton-column:nth-child( 4 ) {
+	animation-delay: 0.45s;
+}
+
+@keyframes atwork-pulse {
+	50% {
+		opacity: 0.8;
+	}
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.atwork__skeleton-column {
+		animation: none;
+	}
+}
+
+.atwork__empty {
+	max-inline-size: 380px;
+	margin: 48px auto;
+	text-align: center;
+	color: var( --atwork-fg-muted );
+}
+
+.atwork__empty-title {
+	margin: 0 0 4px;
+	font-size: 15px;
+	font-weight: 600;
+	color: var( --atwork-fg );
+}
+
+/* -- Admin page host ---------------------------------------------------- */
+
+.atwork-wrap .atwork {
+	block-size: calc( 100vh - 180px );
+	min-block-size: 420px;
+	border: 1px solid var( --atwork-border );
+	border-radius: var( --atwork-radius );
+	background: var( --atwork-surface );
+	overflow: hidden;
+}
+
+.atwork-wrap--chromeless {
+	margin: 0;
+	padding: 0;
+}
+
+.atwork-wrap--chromeless .atwork {
+	block-size: 100vh;
+	min-block-size: 0;
+	border: 0;
+	border-radius: 0;
+}
+
+/* -- Widget ------------------------------------------------------------- */
+
+.atwork-widget {
+	--atwork-fg: var( --os-ui-fg, #1e1e1e );
+	--atwork-fg-muted: var( --os-ui-fg-muted, #646970 );
+	--atwork-border: var( --os-ui-border, rgba( 0, 0, 0, 0.12 ) );
+	--atwork-accent: var( --os-ui-accent, #2271b1 );
+	--atwork-danger: var( --os-ui-danger, #d63638 );
+
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	block-size: 100%;
+	min-block-size: 0;
+	color: var( --atwork-fg );
+	font-size: 12px;
+}
+
+.atwork-widget__header {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+	flex: 0 0 auto;
+}
+
+.atwork-widget__counts {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	flex: 1 1 auto;
+}
+
+.atwork-widget__count {
+	padding: 1px 7px;
+	border-radius: 999px;
+	background: var( --atwork-border );
+	font-size: 11px;
+	font-weight: 600;
+}
+
+.atwork-widget__count.is-overdue {
+	background: var( --atwork-danger );
+	color: #fff;
+}
+
+.atwork-widget__count.is-today {
+	background: var( --atwork-accent );
+	color: #fff;
+}
+
+.atwork-widget__filter {
+	flex: 0 0 auto;
+	padding: 2px 8px;
+	border: 1px solid var( --atwork-border );
+	border-radius: 6px;
+	background: transparent;
+	color: var( --atwork-fg-muted );
+	cursor: pointer;
+	font: inherit;
+	font-size: 11px;
+}
+
+.atwork-widget__filter[ aria-expanded='true' ] {
+	border-color: var( --atwork-accent );
+	color: var( --atwork-accent );
+}
+
+.atwork-widget__picker {
+	flex: 0 0 auto;
+	/* The picker can outgrow a short widget card; scrolling it beats pushing
+	   the task list out of the card entirely. */
+	max-block-size: 40%;
+	overflow-y: auto;
+	padding: 8px;
+	border: 1px solid var( --atwork-border );
+	border-radius: 8px;
+}
+
+.atwork-widget__picker-row {
+	display: flex;
+	gap: 6px;
+	align-items: center;
+	padding-block: 3px;
+	cursor: pointer;
+}
+
+.atwork-widget__picker-all {
+	display: block;
+	inline-size: 100%;
+	margin-block-end: 4px;
+	padding: 3px 0;
+	border: 0;
+	border-block-end: 1px solid var( --atwork-border );
+	background: transparent;
+	color: var( --atwork-accent );
+	cursor: pointer;
+	font: inherit;
+	font-size: 11px;
+	text-align: start;
+}
+
+.atwork-widget__picker-all:disabled {
+	color: var( --atwork-fg-muted );
+	cursor: default;
+}
+
+.atwork-widget__picker-empty {
+	margin: 0;
+	color: var( --atwork-fg-muted );
+}
+
+.atwork-widget__list {
+	flex: 1 1 auto;
+	min-block-size: 0;
+	margin: 0;
+	padding: 0;
+	overflow-y: auto;
+	list-style: none;
+}
+
+.atwork-widget__item {
+	padding-block: 6px;
+	border-block-end: 1px solid var( --atwork-border );
+}
+
+.atwork-widget__item:last-child {
+	border-block-end: 0;
+}
+
+.atwork-widget__link {
+	display: block;
+	color: inherit;
+	text-decoration: none;
+	font-weight: 500;
+	line-height: 1.35;
+}
+
+.atwork-widget__link:hover {
+	color: var( --atwork-accent );
+	text-decoration: underline;
+}
+
+.atwork-widget__item-meta {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-block-start: 3px;
+	color: var( --atwork-fg-muted );
+	font-size: 11px;
+}
+
+.atwork-widget__item-project {
+	padding: 0 6px;
+	border-radius: 999px;
+	background: var( --atwork-border );
+}
+
+.atwork-widget__item-due.is-overdue {
+	color: var( --atwork-danger );
+	font-weight: 600;
+}
+
+.atwork-widget__status {
+	margin: 0;
+	color: var( --atwork-fg-muted );
+}
+
+
+/* -- WP Explorer decorations --------------------------------------------- */
+
+/*
+ * Injected into the Explorer's own preview pane, which is a wp-admin surface
+ * rather than a board window — so these resolve the shell tokens where they
+ * exist and fall back to admin colours where they do not, exactly like the
+ * board does.
+ */
+
+.atwork-preview {
+	--atwork-fg: var( --os-ui-fg, #1e1e1e );
+	--atwork-fg-muted: var( --os-ui-fg-muted, #646970 );
+	--atwork-border: var( --os-ui-border, rgba( 0, 0, 0, 0.12 ) );
+	--atwork-danger: var( --os-ui-danger, #d63638 );
+
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin-block: 12px;
+	padding-block: 12px;
+	border-block: 1px solid var( --atwork-border );
+	font-size: 12px;
+}
+
+.atwork-preview__row {
+	display: flex;
+	gap: 10px;
+	align-items: baseline;
+}
+
+.atwork-preview__label {
+	flex: 0 0 84px;
+	color: var( --atwork-fg-muted );
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	font-size: 10px;
+	font-weight: 600;
+}
+
+.atwork-preview__value {
+	flex: 1 1 auto;
+	color: var( --atwork-fg );
+}
+
+.atwork-preview__row.is-overdue .atwork-preview__value {
+	color: var( --atwork-danger );
+	font-weight: 600;
+}
+
+.atwork-preview__chip {
+	display: inline-block;
+	padding: 1px 8px;
+	border-radius: 999px;
+	background: color-mix( in srgb, var( --atwork-chip-color, #c4c4c4 ) 22%, transparent );
+	box-shadow: inset 0 0 0 1px color-mix( in srgb, var( --atwork-chip-color, #c4c4c4 ) 55%, transparent );
+	font-weight: 600;
+}
+
+.atwork-preview__colour {
+	display: inline-flex;
+	gap: 6px;
+	align-items: center;
+}
+
+.atwork-preview__swatch {
+	inline-size: 12px;
+	block-size: 12px;
+	border-radius: 3px;
+	background: var( --atwork-chip-color, #c4c4c4 );
+	box-shadow: inset 0 0 0 1px rgba( 0, 0, 0, 0.25 );
+}
+
+.atwork-preview__link {
+	color: inherit;
+}
+
+.atwork-preview__board {
+	margin-block-start: 8px;
+	padding: 6px 12px;
+	border: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.12 ) );
+	border-radius: 6px;
+	background: transparent;
+	color: inherit;
+	cursor: pointer;
+	font: inherit;
+}
+
+.atwork-preview__board:hover {
+	border-color: var( --os-ui-accent, #2271b1 );
+	color: var( --os-ui-accent, #2271b1 );
+}
+
+/*
+ * A late task, visible before you click it. A ring rather than a badge: the
+ * Explorer's tiles already carry a status ribbon and a lock badge in their
+ * corners, and a third corner ornament would be one too many.
+ */
+.atwork-tile--overdue {
+	box-shadow: inset 0 0 0 2px var( --os-ui-danger, #d63638 );
+	border-radius: 8px;
+}
