@@ -156,14 +156,18 @@ Moves are the one mutation the framework cannot see for itself — dropping a ca
 
 - WordPress 6.0+
 - PHP 7.4+
-- [OpenStation](https://github.com/WordPress/openstation) *(optional — the desktop features; everything else works without it)*
+- **[OpenStation](https://github.com/WordPress/openstation) — required.** Declared as
+  `Requires Plugins: desktop-mode`, so WordPress 6.5+ will not activate this plugin
+  without it. The board is a native window on the desktop and every drag gesture in it is
+  the shell's pointer pipeline; there is no version of this that works alone.
 - The Abilities API *(optional — WordPress 6.9+, or any plugin that bundles it)*
 
 ## Install
 
-Grab the zip from [Releases](https://github.com/AllTerrainDeveloper/allterrain-work/releases)
-and upload it at **Plugins → Add New → Upload Plugin** — the built bundles are in the
-package, so there is nothing to compile.
+Install [OpenStation](https://github.com/WordPress/openstation) first, then grab the zip
+from [Releases](https://github.com/AllTerrainDeveloper/allterrain-work/releases) and upload
+it at **Plugins → Add New → Upload Plugin** — the built bundles are in the package, so
+there is nothing to compile.
 
 To work on it instead:
 

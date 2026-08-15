@@ -53,9 +53,14 @@ Reinstalling brings them all back, including their columns and ordering.
 
 = Do I need OpenStation? =
 
-No. It adds the desktop window, the wallpaper icon, the widget and
-cross-window drag and drop. The board, the REST routes and the abilities all
-work without it.
+Yes. AllTerrain Work is a desktop app: the board opens as a window on the
+OpenStation desktop, and dragging cards between columns, dropping a page onto a
+task to attach it and dropping a user onto a card to assign it are all the
+shell's pointer pipeline. The plugin declares OpenStation as a dependency, so
+WordPress 6.5 and above will not activate it until OpenStation is active.
+
+Your projects and tasks are ordinary posts, so if OpenStation is ever
+deactivated the data stays exactly where it was and comes back with it.
 
 == Changelog ==
 

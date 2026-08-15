@@ -2,11 +2,23 @@
 /**
  * OpenStation integration.
  *
- * Everything here sits behind a `function_exists()` gate resolved through
- * `shell-api.php`. With no shell installed, none of it runs and the plugin is a
- * work tracker with an admin page. With the shell installed, it becomes a
- * desktop app: a native window on the board, a wallpaper icon, a widget in the
- * side column, and an entry in the command palette.
+ * OpenStation is a dependency, not an enhancement: `Requires Plugins:
+ * desktop-mode` in the plugin header, which WordPress enforces from 6.5 by
+ * refusing to activate this plugin without it. The board is a native window on
+ * the desktop and its drag and drop is the shell's pointer pipeline; there is
+ * no version of this plugin that does those things alone.
+ *
+ * Everything here nonetheless sits behind a `function_exists()` gate resolved
+ * through `shell-api.php`, because "declared" and "present right now" are
+ * different questions. The dependency can be deleted from disk after
+ * activation, the header is inert below 6.5, and the shell can rename an API
+ * between releases. A missing function then costs the desktop surfaces and an
+ * admin notice, rather than a fatal on every request -- which is the difference
+ * between a site an administrator can log in and fix, and one they cannot.
+ *
+ * With the shell present this becomes a desktop app: a native window on the
+ * board, a wallpaper icon, a widget in the side column, and an entry in the
+ * command palette.
  *
  * The board is a **native** window rather than an iframe, and that is the whole
  * reason the drag-and-drop feels the way it does. Rendering into the shell's own
@@ -21,6 +33,51 @@
 defined( 'ABSPATH' ) || exit;
 
 add_action( 'plugins_loaded', 'atwork_maybe_init_openstation', 20 );
+add_action( 'admin_notices', 'atwork_missing_shell_notice' );
+
+/**
+ * Says so, on a site running without the shell.
+ *
+ * OpenStation is a dependency, declared in the plugin header as
+ * `Requires Plugins: desktop-mode`. WordPress enforces that from 6.5: the
+ * Plugins screen lists the requirement, and the activation toggle stays
+ * disabled until it is met. This notice is for the versions below that, where
+ * the header is read and ignored, and for the case the header cannot cover at
+ * all -- a dependency that was active at activation time and has since been
+ * deleted.
+ *
+ * It does not deactivate anything and does not stop the content types
+ * registering. A site in this state still has its projects and tasks in the
+ * database, and taking the admin screens away to make a point would make
+ * recoverable data look lost.
+ *
+ * @since 0.1.0
+ *
+ * @return void
+ */
+function atwork_missing_shell_notice() {
+	if ( atwork_shell_has( 'register_window' ) || ! current_user_can( 'activate_plugins' ) ) {
+		return;
+	}
+
+	// One screen, not every screen. This is a standing condition rather than
+	// the result of anything the reader just did, and a banner on all of
+	// wp-admin for a standing condition is one people learn to scroll past.
+	$screen = get_current_screen();
+
+	if ( ! $screen || ! in_array( $screen->id, array( 'plugins', 'plugins-network', 'dashboard' ), true ) ) {
+		return;
+	}
+
+	printf(
+		'<div class="notice notice-warning"><p><strong>%1$s</strong> %2$s</p></div>',
+		esc_html__( 'AllTerrain Work needs OpenStation.', 'allterrain-work' ),
+		esc_html__(
+			'The board is a desktop app: it opens as a window on the OpenStation desktop, and its drag and drop runs on the shell’s pointer pipeline. Without OpenStation active, your projects and tasks are safe but there is nowhere to open them.',
+			'allterrain-work'
+		)
+	);
+}
 
 /**
  * Wires up the shell integrations, if there is a shell to wire into.

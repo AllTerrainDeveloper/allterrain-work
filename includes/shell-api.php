@@ -35,13 +35,34 @@ const ATWORK_SHELL_PREFIXES = array( 'openstation_', 'desktop_mode_' );
  * @return string The callable name, or an empty string when no shell provides it.
  */
 function atwork_shell_function( $name ) {
+	$resolved = '';
+
 	foreach ( ATWORK_SHELL_PREFIXES as $prefix ) {
 		if ( function_exists( $prefix . $name ) ) {
-			return $prefix . $name;
+			$resolved = $prefix . $name;
+			break;
 		}
 	}
 
-	return '';
+	/**
+	 * Filters the shell function this plugin will call for a capability.
+	 *
+	 * Returning an empty string makes the plugin behave as though the shell
+	 * does not offer that capability at all, which is the supported way to turn
+	 * one integration off without deactivating anything -- a site that wants
+	 * the work tracker but not the wallpaper icon, say.
+	 *
+	 * It is also the only way to *test* the no-shell paths. Detection is
+	 * `function_exists()`, and PHP cannot undefine a function, so a suite whose
+	 * bootstrap stubs the shell can otherwise never reach the branches that run
+	 * when it is missing.
+	 *
+	 * @since 0.1.0
+	 *
+	 * @param string $resolved The callable name, or '' when no shell provides it.
+	 * @param string $name     The bare capability name, e.g. `register_window`.
+	 */
+	return (string) apply_filters( 'atwork_shell_function', $resolved, $name );
 }
 
 /**

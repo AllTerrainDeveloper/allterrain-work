@@ -6,6 +6,7 @@
  * Version:           0.1.0
  * Requires at least: 6.0
  * Requires PHP:      7.4
+ * Requires Plugins:  desktop-mode
  * Author:            Daniel Lopez
  * License:           GPL-2.0-or-later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
@@ -30,14 +31,27 @@
  * data without a line of integration code. A custom schema would have bought a
  * marginally tidier query and cost all of it.
  *
- * **OpenStation is optional, not required.** With the shell installed and
- * switched on, the board is a native window -- rendered into the shell's own
- * DOM, which is what gives it OpenStation's components, its drag manager and
- * its window chrome. With the shell absent or switched off, the same board
- * renders on a plain admin page under its own menu. There is deliberately no
- * `Requires Plugins:` header: every OpenStation call in this plugin sits
- * behind a `function_exists()` gate, so a site without the shell loses the
- * desktop affordances and keeps the work tracker.
+ * **OpenStation is required.** The board is a native window -- rendered into
+ * the shell's own DOM, which is what gives it OpenStation's components, its
+ * drag manager and its window chrome. Dragging a card between columns, dropping
+ * a page onto a task to attach it, dropping a user onto a card to assign it:
+ * all of it is the shell's pointer pipeline, and none of it exists without the
+ * shell. What is left over runs on a plain admin page, but it is a list of
+ * posts, not this product. So the dependency is declared -- `Requires Plugins:
+ * desktop-mode` -- and WordPress enforces it from 6.5.
+ *
+ * The slug is `desktop-mode` rather than `openstation`, and that is not a typo:
+ * `Requires Plugins` matches on the dependency's *directory* slug, and
+ * OpenStation ships from a directory named after what it used to be called.
+ * Writing the product name there would silently name a plugin that does not
+ * exist, and an unmet dependency blocks activation -- so the wrong slug is the
+ * difference between a plugin that installs and one that cannot.
+ *
+ * Every OpenStation call still sits behind a `function_exists()` gate. A
+ * declared dependency is not a present one: the header is inert below 6.5, a
+ * dependency can be deleted from disk after activation, and an API can be
+ * renamed between releases. The gates turn all of that into a missing feature
+ * and an admin notice instead of a fatal error.
  *
  * @package AllTerrain_Work
  */

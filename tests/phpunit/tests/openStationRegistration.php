@@ -248,4 +248,134 @@ class Tests_ATWork_OpenStationRegistration extends WP_UnitTestCase {
 		$this->assertFalse( atwork_shell_has( 'a_function_no_shell_has' ) );
 		$this->assertNull( atwork_shell_call( 'a_function_no_shell_has' ) );
 	}
+
+	/**
+	 * The dependency is declared where WordPress reads it.
+	 *
+	 * The slug is the whole risk here. `Requires Plugins` matches on the
+	 * dependency's directory slug, and OpenStation ships from `desktop-mode` --
+	 * naming it `openstation` would point at a plugin that does not exist, and
+	 * an unmet dependency blocks activation outright. So this pins the exact
+	 * string rather than merely asserting the header is present.
+	 *
+	 * @covers ::atwork_missing_shell_notice
+	 */
+	public function test_openstation_is_declared_as_a_dependency() {
+		$plugin = get_plugin_data( ATWORK_FILE, false, false );
+
+		$this->assertArrayHasKey( 'RequiresPlugins', $plugin );
+		$this->assertSame( 'desktop-mode', $plugin['RequiresPlugins'] );
+	}
+
+	/**
+	 * With a shell present there is nothing to warn about, and a standing
+	 * banner nobody needs is a banner people learn to scroll past.
+	 *
+	 * @covers ::atwork_missing_shell_notice
+	 */
+	public function test_no_dependency_notice_while_the_shell_is_there() {
+		set_current_screen( 'plugins' );
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+
+		ob_start();
+		atwork_missing_shell_notice();
+
+		$this->assertSame( '', ob_get_clean() );
+	}
+
+	/**
+	 * Nobody who cannot act on it should be shown it.
+	 *
+	 * @covers ::atwork_missing_shell_notice
+	 */
+	public function test_the_dependency_notice_is_for_people_who_can_fix_it() {
+		set_current_screen( 'plugins' );
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'author' ) ) );
+
+		ob_start();
+		atwork_missing_shell_notice();
+
+		$this->assertSame( '', ob_get_clean() );
+	}
+
+	/**
+	 * Hides the shell, the only way a `function_exists()` check can be hidden.
+	 *
+	 * @return callable The filter, so it can be removed again.
+	 */
+	private function without_a_shell() {
+		$off = static function () {
+			return '';
+		};
+
+		add_filter( 'atwork_shell_function', $off, 10, 1 );
+
+		return $off;
+	}
+
+	/**
+	 * The behaviour the whole dependency declaration exists for.
+	 *
+	 * @covers ::atwork_missing_shell_notice
+	 */
+	public function test_the_notice_names_the_dependency_when_the_shell_is_gone() {
+		set_current_screen( 'plugins' );
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+
+		$off = $this->without_a_shell();
+
+		ob_start();
+		atwork_missing_shell_notice();
+		$html = ob_get_clean();
+
+		remove_filter( 'atwork_shell_function', $off, 10 );
+
+		$this->assertStringContainsString( 'OpenStation', $html );
+		$this->assertStringContainsString( 'notice-warning', $html );
+
+		// It must say the work is still there. A warning that reads as data
+		// loss is worse than no warning.
+		$this->assertStringContainsString( 'safe', $html );
+	}
+
+	/**
+	 * A standing condition, not news, so it belongs on the screens where
+	 * somebody is already dealing with plugins -- not on every admin page.
+	 *
+	 * @covers ::atwork_missing_shell_notice
+	 */
+	public function test_the_notice_stays_off_unrelated_screens() {
+		set_current_screen( 'edit-post' );
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+
+		$off = $this->without_a_shell();
+
+		ob_start();
+		atwork_missing_shell_notice();
+		$html = ob_get_clean();
+
+		remove_filter( 'atwork_shell_function', $off, 10 );
+
+		$this->assertSame( '', $html );
+	}
+
+	/**
+	 * The filter is load-bearing for every other no-shell path too, so pin that
+	 * it actually reaches the resolver rather than only the notice.
+	 *
+	 * @covers ::atwork_shell_function
+	 */
+	public function test_the_shell_resolver_is_filterable() {
+		$off = $this->without_a_shell();
+
+		$this->assertSame( '', atwork_shell_function( 'register_window' ) );
+		$this->assertFalse( atwork_shell_has( 'register_window' ) );
+		$this->assertNull( atwork_shell_call( 'register_window', 'x' ) );
+
+		remove_filter( 'atwork_shell_function', $off, 10 );
+
+		// And back, so the filter is doing the hiding rather than something
+		// else having gone missing.
+		$this->assertSame( 'openstation_register_window', atwork_shell_function( 'register_window' ) );
+	}
 }
