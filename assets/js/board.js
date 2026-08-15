@@ -672,6 +672,113 @@
   function trashIcon(size = 13) {
     return icon("M4 7h16M10 7V5h4v2M6 7l1 13h10l1-13M10 11v5M14 11v5", size, false);
   }
+  function registered(tag) {
+    return typeof customElements !== "undefined" && !!customElements.get(tag);
+  }
+  const COMPONENT_TAGS = [
+    "os-select",
+    "os-option",
+    "os-button",
+    "os-text-field"
+  ];
+  async function ensureComponents(tags = COMPONENT_TAGS) {
+    const missing = tags.filter((tag) => !registered(tag));
+    if (!missing.length) {
+      return false;
+    }
+    const load = window.wp?.os?.loadComponents;
+    if ("function" !== typeof load) {
+      return false;
+    }
+    try {
+      await load(tags);
+    } catch {
+      return false;
+    }
+    return missing.some((tag) => registered(tag));
+  }
+  function selectControl(opts) {
+    if (registered("os-select")) {
+      const select2 = document.createElement("os-select");
+      select2.setAttribute("value", opts.value);
+      if (opts.hideLabel) {
+        select2.setAttribute("placeholder", opts.label);
+      } else {
+        select2.setAttribute("label", opts.label);
+      }
+      for (const option2 of opts.options) {
+        const el = document.createElement("os-option");
+        el.setAttribute("value", option2.value);
+        el.textContent = option2.label;
+        select2.appendChild(el);
+      }
+      select2.addEventListener("os-pick", (event) => {
+        const value = event.detail?.value;
+        if (typeof value === "string") {
+          opts.onChange(value);
+        }
+      });
+      return select2;
+    }
+    const select = document.createElement("select");
+    select.className = opts.className ?? "";
+    select.setAttribute("aria-label", opts.label);
+    for (const option2 of opts.options) {
+      const el = document.createElement("option");
+      el.value = option2.value;
+      el.textContent = option2.label;
+      select.appendChild(el);
+    }
+    select.value = opts.value;
+    select.addEventListener("change", () => opts.onChange(select.value));
+    return select;
+  }
+  function buttonControl(opts) {
+    if (registered("os-button")) {
+      const button2 = document.createElement("os-button");
+      button2.textContent = opts.label;
+      if (opts.variant) {
+        button2.setAttribute("variant", opts.variant);
+      }
+      button2.addEventListener("click", opts.onClick);
+      return button2;
+    }
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = opts.className ?? "atwork__button";
+    button.textContent = opts.label;
+    button.addEventListener("click", opts.onClick);
+    return button;
+  }
+  function textControl(opts) {
+    if (registered("os-text-field")) {
+      const field = document.createElement("os-text-field");
+      field.setAttribute("value", opts.value ?? "");
+      if (opts.hideLabel) {
+        field.setAttribute("aria-label", opts.label);
+      } else {
+        field.setAttribute("label", opts.label);
+      }
+      if (opts.placeholder) {
+        field.setAttribute("placeholder", opts.placeholder);
+      }
+      field.addEventListener("input", (event) => {
+        const value = event.target.value;
+        opts.onInput(typeof value === "string" ? value : "");
+      });
+      return field;
+    }
+    const input = document.createElement("input");
+    input.type = opts.type ?? "text";
+    input.className = opts.className ?? "";
+    input.setAttribute("aria-label", opts.label);
+    input.value = opts.value ?? "";
+    if (opts.placeholder) {
+      input.placeholder = opts.placeholder;
+    }
+    input.addEventListener("input", () => opts.onInput(input.value));
+    return input;
+  }
   let open = null;
   function closeComments() {
     open?.close();
@@ -806,11 +913,7 @@
         head.className = "atwork-comments__head";
         const who = document.createElement("strong");
         who.textContent = comment.isMine ? "You" : comment.author;
-        const when = document.createElement("time");
-        when.dateTime = comment.date;
-        when.textContent = relative(comment.date);
-        when.title = new Date(comment.date).toLocaleString();
-        head.append(who, when);
+        head.append(who, timestamp(comment.date));
         bubble.appendChild(head);
       }
       const body = document.createElement("p");
@@ -840,7 +943,7 @@
     loading.className = "atwork-comments__loading";
     loading.textContent = "Loading…";
     list.appendChild(loading);
-    void fetchComments(taskId).then((loaded) => {
+    void Promise.all([fetchComments(taskId), ensureComponents(["os-relative-time"])]).then(([loaded]) => {
       if (open?.panel !== panel) {
         return;
       }
@@ -898,6 +1001,19 @@
     });
     input.focus();
   }
+  function timestamp(iso) {
+    if (registered("os-relative-time")) {
+      const el = document.createElement("os-relative-time");
+      el.setAttribute("datetime", iso);
+      el.setAttribute("compact", "");
+      return el;
+    }
+    const when = document.createElement("time");
+    when.dateTime = iso;
+    when.textContent = relative(iso);
+    when.title = new Date(iso).toLocaleString();
+    return when;
+  }
   function withinTheHour(earlier, later) {
     const a = new Date(earlier).getTime();
     const b = new Date(later).getTime();
@@ -932,113 +1048,6 @@
     const top = below + height > window.innerHeight ? Math.max(8, rect.top - height - 8) : below;
     panel.style.left = `${left}px`;
     panel.style.top = `${top}px`;
-  }
-  function registered(tag) {
-    return typeof customElements !== "undefined" && !!customElements.get(tag);
-  }
-  const COMPONENT_TAGS = [
-    "os-select",
-    "os-option",
-    "os-button",
-    "os-text-field"
-  ];
-  async function ensureComponents(tags = COMPONENT_TAGS) {
-    const missing = tags.filter((tag) => !registered(tag));
-    if (!missing.length) {
-      return false;
-    }
-    const load = window.wp?.os?.loadComponents;
-    if ("function" !== typeof load) {
-      return false;
-    }
-    try {
-      await load(tags);
-    } catch {
-      return false;
-    }
-    return missing.some((tag) => registered(tag));
-  }
-  function selectControl(opts) {
-    if (registered("os-select")) {
-      const select2 = document.createElement("os-select");
-      select2.setAttribute("value", opts.value);
-      if (opts.hideLabel) {
-        select2.setAttribute("placeholder", opts.label);
-      } else {
-        select2.setAttribute("label", opts.label);
-      }
-      for (const option2 of opts.options) {
-        const el = document.createElement("os-option");
-        el.setAttribute("value", option2.value);
-        el.textContent = option2.label;
-        select2.appendChild(el);
-      }
-      select2.addEventListener("os-pick", (event) => {
-        const value = event.detail?.value;
-        if (typeof value === "string") {
-          opts.onChange(value);
-        }
-      });
-      return select2;
-    }
-    const select = document.createElement("select");
-    select.className = opts.className ?? "";
-    select.setAttribute("aria-label", opts.label);
-    for (const option2 of opts.options) {
-      const el = document.createElement("option");
-      el.value = option2.value;
-      el.textContent = option2.label;
-      select.appendChild(el);
-    }
-    select.value = opts.value;
-    select.addEventListener("change", () => opts.onChange(select.value));
-    return select;
-  }
-  function buttonControl(opts) {
-    if (registered("os-button")) {
-      const button2 = document.createElement("os-button");
-      button2.textContent = opts.label;
-      if (opts.variant) {
-        button2.setAttribute("variant", opts.variant);
-      }
-      button2.addEventListener("click", opts.onClick);
-      return button2;
-    }
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = opts.className ?? "atwork__button";
-    button.textContent = opts.label;
-    button.addEventListener("click", opts.onClick);
-    return button;
-  }
-  function textControl(opts) {
-    if (registered("os-text-field")) {
-      const field = document.createElement("os-text-field");
-      field.setAttribute("value", opts.value ?? "");
-      if (opts.hideLabel) {
-        field.setAttribute("aria-label", opts.label);
-      } else {
-        field.setAttribute("label", opts.label);
-      }
-      if (opts.placeholder) {
-        field.setAttribute("placeholder", opts.placeholder);
-      }
-      field.addEventListener("input", (event) => {
-        const value = event.target.value;
-        opts.onInput(typeof value === "string" ? value : "");
-      });
-      return field;
-    }
-    const input = document.createElement("input");
-    input.type = opts.type ?? "text";
-    input.className = opts.className ?? "";
-    input.setAttribute("aria-label", opts.label);
-    input.value = opts.value ?? "";
-    if (opts.placeholder) {
-      input.placeholder = opts.placeholder;
-    }
-    input.addEventListener("input", () => opts.onInput(input.value));
-    return input;
   }
   function openInShell(url, title, icon2 = "dashicons-admin-post") {
     const shell = getShell();

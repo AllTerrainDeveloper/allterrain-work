@@ -27,7 +27,7 @@
  */
 
 /** Whether a custom element is actually defined on this page. */
-function registered( tag: string ): boolean {
+export function registered( tag: string ): boolean {
 	return typeof customElements !== 'undefined' && !! customElements.get( tag );
 }
 

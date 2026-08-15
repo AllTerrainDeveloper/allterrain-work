@@ -20,6 +20,7 @@
 
 import { addComment, deleteComment, fetchComments } from './api';
 import { bubbleIcon, closeIcon, sendIcon, trashIcon } from './icons';
+import { ensureComponents, registered } from './os-ui';
 import type { TaskComment } from './types';
 
 /** The thread currently on screen, if any. Only ever one. */
@@ -247,12 +248,7 @@ export function openComments(
 			// back at you is how a form talks, not how a conversation does.
 			who.textContent = comment.isMine ? 'You' : comment.author;
 
-			const when = document.createElement( 'time' );
-			when.dateTime = comment.date;
-			when.textContent = relative( comment.date );
-			when.title = new Date( comment.date ).toLocaleString();
-
-			head.append( who, when );
+			head.append( who, timestamp( comment.date ) );
 			bubble.appendChild( head );
 		}
 
@@ -290,8 +286,20 @@ export function openComments(
 	loading.textContent = 'Loading…';
 	list.appendChild( loading );
 
-	void fetchComments( taskId )
-		.then( ( loaded ) => {
+	/*
+	 * The thread and the timestamp component, fetched together.
+	 *
+	 * In parallel because neither needs the other, and asked for here rather
+	 * than when the board mounts because this is the only screen that renders
+	 * one: a user who never opens a thread never pays for the kit. With the tag
+	 * already registered the call is a registry lookup and no request, so
+	 * reopening a thread costs nothing.
+	 *
+	 * `ensureComponents()` never rejects, so the settled shape below is decided
+	 * entirely by whether the comments arrived.
+	 */
+	void Promise.all( [ fetchComments( taskId ), ensureComponents( [ 'os-relative-time' ] ) ] )
+		.then( ( [ loaded ] ) => {
 			if ( open?.panel !== panel ) {
 				return;
 			}
@@ -373,6 +381,41 @@ export function openComments(
 	} );
 
 	input.focus();
+}
+
+/**
+ * The "2 min ago" beside a name.
+ *
+ * `<os-relative-time>` when the shell can provide it, because a thread is
+ * exactly the case a static timestamp gets wrong: the panel stays open while
+ * people talk, and a line that said "just now" when it was painted goes on
+ * saying it a quarter of an hour later. The component re-renders itself every
+ * 30 seconds while connected, and formats through `Intl.RelativeTimeFormat`, so
+ * it also says it in the reader's language rather than in the English below.
+ *
+ * The dates arrive from `comment_date_gmt`, which is what the component asks
+ * for — it reads a value with no timezone designator as UTC, so handing it a
+ * site-local time would be wrong by the site's offset.
+ *
+ * @param iso The moment, ISO 8601, UTC.
+ */
+function timestamp( iso: string ): HTMLElement {
+	if ( registered( 'os-relative-time' ) ) {
+		const el = document.createElement( 'os-relative-time' );
+		el.setAttribute( 'datetime', iso );
+		// A comment thread is a narrow column and the name beside this has the
+		// stronger claim on the width.
+		el.setAttribute( 'compact', '' );
+
+		return el;
+	}
+
+	const when = document.createElement( 'time' );
+	when.dateTime = iso;
+	when.textContent = relative( iso );
+	when.title = new Date( iso ).toLocaleString();
+
+	return when;
 }
 
 /** Whether two timestamps are close enough to group under one name. */
