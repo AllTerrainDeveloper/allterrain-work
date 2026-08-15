@@ -14,16 +14,97 @@
  *
  * **Tags, not imports.** Importing from the `openstation` package would pull
  * the whole component kit into a bundle that also has to load on sites with no
- * shell at all. The shell already registers the overlay kit — select, menu,
- * toast, confirm-dialog — right after first paint, so emitting the tag is
- * enough. Every helper here checks the custom-element registry first and falls
+ * shell at all — and there is nothing to import *from*: this plugin installs
+ * from a zip onto a site that already has OpenStation, so at build time there
+ * is no copy of it on disk to resolve against. Emitting the tag is the route
+ * that works, and `ensureComponents()` below is what makes the tag real.
+ *
+ * Every helper here still checks the custom-element registry first and falls
  * back to the native control, because a tag no loaded bundle has registered
- * renders as inert HTML rather than as a control.
+ * renders as inert HTML rather than as a control — and that remains possible on
+ * the standalone admin page, which has no shell, and on a site running a shell
+ * older than `wp.os.loadComponents()`.
  */
 
 /** Whether a custom element is actually defined on this page. */
 function registered( tag: string ): boolean {
 	return typeof customElements !== 'undefined' && !! customElements.get( tag );
+}
+
+/**
+ * The tags this plugin renders when the shell can provide them.
+ *
+ * Listed rather than inferred, because the list is the argument that lets the
+ * loader skip the network: `loadComponents()` with no tags always fetches the
+ * kit, while `loadComponents( tags )` returns without a request once they are
+ * all registered.
+ */
+export const COMPONENT_TAGS = [
+	'os-select',
+	'os-option',
+	'os-button',
+	'os-text-field',
+] as const;
+
+/**
+ * Asks the shell to register the tags we are about to render.
+ *
+ * Components are side-effect registered per bundle, at import time, so which
+ * `<os-*>` tags work on a page is whichever ones the bundles that happened to
+ * load imported for their own UI — around 26 of the 64 the shell ships, and a
+ * different 26 depending on what it drew. That is why every helper below still
+ * checks the registry: the same tag is a real control on one screen and inert
+ * markup on another.
+ *
+ * `wp.os.loadComponents()` closes that gap. It matters most to a plugin shaped
+ * like this one: we install from a zip onto a site that already has
+ * OpenStation, so there is no path to `import` the classes from at build time,
+ * and bundling our own copy would ship a second set of the components the page
+ * already has.
+ *
+ * Guarded on both sides rather than assumed. The API landed after this plugin
+ * started using components, so a site can be running an older shell -- and the
+ * standalone admin page has no shell at all. Either way this resolves quietly
+ * and the helpers fall back to native controls, which is what they did before
+ * the API existed.
+ *
+ * @param tags Tags about to be rendered.
+ * @return Whether anything actually upgraded, i.e. whether a re-render is worth
+ *         doing. False when the tags were already there, when no shell offers
+ *         the API, and when the fetch failed.
+ */
+export async function ensureComponents(
+	tags: readonly string[] = COMPONENT_TAGS
+): Promise< boolean > {
+	const missing = tags.filter( ( tag ) => ! registered( tag ) );
+
+	// Nothing to gain, and no reason to touch the shell at all.
+	if ( ! missing.length ) {
+		return false;
+	}
+
+	const load = (
+		window as unknown as {
+			wp?: { os?: { loadComponents?: ( t: readonly string[] ) => Promise< void > } };
+		}
+	 ).wp?.os?.loadComponents;
+
+	if ( 'function' !== typeof load ) {
+		return false;
+	}
+
+	try {
+		await load( tags );
+	} catch {
+		// The kit was needed and could not be fetched. The helpers below render
+		// native controls, so the board is usable rather than broken; there is
+		// nothing here worth interrupting anyone about.
+		return false;
+	}
+
+	// Only report success for a tag that was missing and now is not. A caller
+	// re-rendering on `true` should not be made to do it for nothing.
+	return missing.some( ( tag ) => registered( tag ) );
 }
 
 export interface Option {
@@ -154,10 +235,11 @@ export function buttonControl( opts: {
 /**
  * A single-line text field, as a component where one exists.
  *
- * `<os-text-field>` is *not* part of the overlay kit the shell pre-registers,
- * so on most pages this returns the native input — which is exactly why the
- * check is at runtime rather than assumed either way. When another bundle has
- * imported the kit, the board picks the component up for free.
+ * Which is to say: the component, once `ensureComponents()` has run. Whether
+ * `<os-text-field>` is registered at boot depends on what the shell happened to
+ * draw — it is not in the overlay kit that always loads — so before the loader
+ * existed this returned a native input on most pages and a component on some,
+ * which is exactly why the check is at runtime rather than assumed either way.
  */
 export function textControl( opts: {
 	label: string;

@@ -44,7 +44,7 @@ import { onProjectFocus } from './focus';
 import { closeAssigneePicker, openAssigneePicker } from './assignee-picker';
 import { closeComments, openComments } from './comments';
 import { bubbleIcon } from './icons';
-import { buttonControl, selectControl, textControl } from './os-ui';
+import { buttonControl, ensureComponents, selectControl, textControl } from './os-ui';
 import { openUrl, routeLinkIntoShell } from './open';
 import {
 	assigneeIn,
@@ -75,6 +75,23 @@ export function mountBoard( root: HTMLElement ): Teardown {
 	const board = new BoardView( root );
 
 	void board.load();
+
+	/*
+	 * Ask the shell for the `<os-*>` tags this board draws, and redraw if any of
+	 * them arrived.
+	 *
+	 * Not awaited before mounting, deliberately. A native window's render
+	 * callback has to hand back its teardown synchronously, so making the mount
+	 * async would change a contract the shell owns -- and it would trade a board
+	 * that appears at once for a board that waits on a network request to look
+	 * slightly better. So the first paint uses whatever is registered, exactly
+	 * as it did before, and the upgrade lands a frame later if there was one.
+	 *
+	 * `ensureComponents()` answers false when the tags were already there, which
+	 * is the common case inside the shell, so this usually costs one registry
+	 * lookup and no redraw at all.
+	 */
+	void board.upgradeControls();
 
 	return () => board.destroy();
 }
@@ -190,10 +207,27 @@ class BoardView {
 		}
 	}
 
+	/**
+	 * Redraws once the shell's component tags are available.
+	 *
+	 * The controls decide between an `<os-*>` component and a native element at
+	 * the moment they are built, and that decision cannot un-make itself: a tag
+	 * registered later upgrades elements already in the DOM, but it cannot turn
+	 * an `<input>` we already chose into an `<os-text-field>`. Hence a redraw
+	 * rather than trusting the registry to catch up.
+	 */
+	public async upgradeControls(): Promise< void > {
+		const upgraded = await ensureComponents();
+
+		// The window can close while the kit is in flight.
+		if ( upgraded && ! this.destroyed ) {
+			this.render();
+		}
+	}
+
 	public destroy(): void {
 		this.destroyed = true;
 		closeAssigneePicker();
-		closeComments();
 		closeComments();
 		this.clearDropTargets();
 		this.unsubscribe();

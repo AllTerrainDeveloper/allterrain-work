@@ -936,6 +936,28 @@
   function registered(tag) {
     return typeof customElements !== "undefined" && !!customElements.get(tag);
   }
+  const COMPONENT_TAGS = [
+    "os-select",
+    "os-option",
+    "os-button",
+    "os-text-field"
+  ];
+  async function ensureComponents(tags = COMPONENT_TAGS) {
+    const missing = tags.filter((tag) => !registered(tag));
+    if (!missing.length) {
+      return false;
+    }
+    const load = window.wp?.os?.loadComponents;
+    if ("function" !== typeof load) {
+      return false;
+    }
+    try {
+      await load(tags);
+    } catch {
+      return false;
+    }
+    return missing.some((tag) => registered(tag));
+  }
   function selectControl(opts) {
     if (registered("os-select")) {
       const select2 = document.createElement("os-select");
@@ -1128,6 +1150,7 @@
   function mountBoard(root) {
     const board = new BoardView(root);
     void board.load();
+    void board.upgradeControls();
     return () => board.destroy();
   }
   class BoardView {
@@ -1200,10 +1223,24 @@
         );
       }
     }
+    /**
+     * Redraws once the shell's component tags are available.
+     *
+     * The controls decide between an `<os-*>` component and a native element at
+     * the moment they are built, and that decision cannot un-make itself: a tag
+     * registered later upgrades elements already in the DOM, but it cannot turn
+     * an `<input>` we already chose into an `<os-text-field>`. Hence a redraw
+     * rather than trusting the registry to catch up.
+     */
+    async upgradeControls() {
+      const upgraded = await ensureComponents();
+      if (upgraded && !this.destroyed) {
+        this.render();
+      }
+    }
     destroy() {
       this.destroyed = true;
       closeAssigneePicker();
-      closeComments();
       closeComments();
       this.clearDropTargets();
       this.unsubscribe();
