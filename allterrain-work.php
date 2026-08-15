@@ -1,8 +1,8 @@
 <?php
 /**
- * Plugin Name:       AllTerrain Work
+ * Plugin Name:       AllTerrain Work - Kanban Project & Task Boards for OpenStation
  * Plugin URI:        https://github.com/AllTerrainDeveloper/allterrain-work
- * Description:       Projects and tasks on a drag-and-drop board, as an OpenStation desktop app. Everything is a WordPress post, so the REST API, capabilities, revisions, search and the Abilities API all work on it out of the box.
+ * Description:       Kanban project and task boards for the OpenStation desktop. Drag cards between columns, drag any post onto a card to attach it, drag a user onto a card to assign it. Every task is an ordinary WordPress post, so the REST API, capabilities, revisions, search and the Abilities API all work on it out of the box.
  * Version:           0.1.0
  * Requires at least: 6.0
  * Requires PHP:      7.4

@@ -1,14 +1,17 @@
 <div align="center">
 
+<img src=".wordpress-org/banner-1544x500.png" alt="AllTerrain Work" width="820">
+
 # AllTerrain Work
 
-**Projects and tasks on a drag-and-drop board — a Monday-shaped work tracker built as an
-[OpenStation](https://github.com/WordPress/openstation) desktop app, on top of ordinary WordPress objects.**
+**Kanban project and task boards for the [OpenStation](https://github.com/WordPress/openstation)
+desktop — a Monday-shaped work tracker built on ordinary WordPress objects.**
 
 [![WordPress 6.0+](https://img.shields.io/badge/WordPress-6.0%2B-21759b)](https://wordpress.org)
 [![PHP 7.4+](https://img.shields.io/badge/PHP-7.4%2B-777bb4)](https://php.net)
+[![Requires OpenStation](https://img.shields.io/badge/requires-OpenStation-c1622f)](https://github.com/WordPress/openstation)
 [![License](https://img.shields.io/badge/license-GPL--2.0--or--later-blue)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-133%20PHP%20%2B%2064%20JS-brightgreen)](#testing)
+[![Tests](https://img.shields.io/badge/tests-141%20PHP%20%2B%2072%20JS-brightgreen)](#testing)
 
 ![The board](.github/screenshots/board.jpg)
 
@@ -199,7 +202,7 @@ npm run plugin:release   # build + check + package, the full gate
 
 ## Testing
 
-135 PHPUnit tests and 64 vitest tests, all green, plus `phpcs` clean against the WordPress
+141 PHPUnit tests and 72 vitest tests, all green, plus `phpcs` clean against the WordPress
 Coding Standards.
 
 `npm run test:php` needs a WordPress test library and a MySQL server, neither of which is
