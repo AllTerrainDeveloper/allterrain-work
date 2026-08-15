@@ -86,6 +86,9 @@ jobs:
       - name: Build & package
         run: npm run plugin:package
 
+      # Mounted inactive — see the note in ci.yml. `Requires Plugins:
+      # desktop-mode` means WordPress will not activate this on a runner, which
+      # has no OpenStation, and Plugin Check does not need it to be active.
       - name: Start wp-env
         run: npm run env:start
 

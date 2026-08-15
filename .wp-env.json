@@ -1,6 +1,8 @@
 {
 	"$schema": "https://schemas.wp.org/trunk/wp-env.json",
-	"plugins": [ "." ],
+	"mappings": {
+		"wp-content/plugins/allterrain-work": "."
+	},
 	"port": 8896,
 	"testsPort": 8897,
 	"config": {

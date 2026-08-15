@@ -74,6 +74,19 @@ jobs:
       # that mounts a sibling OpenStation checkout there is no override to write
       # here. Nothing is lost: the PHPUnit bootstrap stubs the OpenStation
       # functions the plugin calls rather than needing the shell installed.
+      # `.wp-env.json` mounts this repository with `mappings` rather than
+      # listing it under `plugins`, which would make wp-env activate it — and
+      # activation is exactly what cannot happen here. The plugin declares
+      # `Requires Plugins: desktop-mode`, and a runner has no OpenStation, so
+      # WordPress refuses with "requires 1 plugin to be installed and
+      # activated" and `wp-env start` exits non-zero before a single test runs.
+      #
+      # Nothing is lost by mounting it inactive. The PHPUnit bootstrap loads the
+      # plugin itself on `muplugins_loaded`, and Plugin Check reads files rather
+      # than a running plugin; both pass against an inactive install. What is
+      # not covered here is the activation path itself, which is WordPress's own
+      # code and is verified against `WP_Plugin_Dependencies` on a site that has
+      # the dependency.
       - name: Start wp-env
         run: npm run env:start
 
@@ -110,6 +123,19 @@ jobs:
       - name: Build the bundles
         run: npm run build:bundles
 
+      # `.wp-env.json` mounts this repository with `mappings` rather than
+      # listing it under `plugins`, which would make wp-env activate it — and
+      # activation is exactly what cannot happen here. The plugin declares
+      # `Requires Plugins: desktop-mode`, and a runner has no OpenStation, so
+      # WordPress refuses with "requires 1 plugin to be installed and
+      # activated" and `wp-env start` exits non-zero before a single test runs.
+      #
+      # Nothing is lost by mounting it inactive. The PHPUnit bootstrap loads the
+      # plugin itself on `muplugins_loaded`, and Plugin Check reads files rather
+      # than a running plugin; both pass against an inactive install. What is
+      # not covered here is the activation path itself, which is WordPress's own
+      # code and is verified against `WP_Plugin_Dependencies` on a site that has
+      # the dependency.
       - name: Start wp-env
         run: npm run env:start
 

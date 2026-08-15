@@ -208,6 +208,12 @@ docker-compose QA site if it is running, otherwise [wp-env](https://www.npmjs.co
 from `.wp-env.json` — and skips with a note when neither is. One command rather than one
 per environment, so the suite cannot quietly stop being run on either.
 
+`.wp-env.json` mounts the repo with `mappings` rather than listing it under `plugins`,
+which would make wp-env *activate* it. It can't: the plugin requires OpenStation, and a
+bare wp-env has none, so WordPress refuses and `wp-env start` fails before any test runs.
+Mounted inactive everything still works — the PHPUnit bootstrap loads the plugin itself,
+and Plugin Check reads files.
+
 ## Releasing
 
 `npm run plugin:package` stages the tree, checks that all four places carrying the version
