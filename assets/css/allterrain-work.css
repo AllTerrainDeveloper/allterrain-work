@@ -1311,19 +1311,47 @@ button.atwork__button--danger {
 
 /* -- Widget ------------------------------------------------------------- */
 
+/*
+ * The widget draws itself out of the surface it was put on.
+ *
+ * It used to set `color: var( --os-ui-fg )` like the rest of the plugin, and on
+ * the desktop that made it nearly unreadable. The reason is worth writing down,
+ * because any widget author will hit it: OpenStation's `--os-ui-*` family
+ * describes the shell's *panel* surfaces, and those are light --
+ * `--os-ui-card-bg` resolves to `#fff` and `--os-ui-fg` to `#1d2327`. A widget
+ * card is not one of those. It is dark glass, `rgba( 20, 20, 22, 0.55 )` over
+ * the wallpaper, and it dresses itself by setting `color: #fff` on the card.
+ * Taking the panel palette meant painting near-black text onto it.
+ *
+ * So nothing here names a foreground colour at all. The card's own `color` is
+ * inherited, and every other shade is mixed from `currentColor`: muted text,
+ * dividers, chip fills. The widget then reads correctly on dark glass, on a
+ * light card, and on whatever surface the shell invents next, without being
+ * told which one it is on -- and a user who restyles their widgets drags this
+ * along for free.
+ *
+ * Only the two *hues* still come from tokens, because they carry meaning rather
+ * than contrast: the accent is the user's chosen colour, and danger has to stay
+ * red to mean "late". Both are mixed toward `currentColor` at the point of use
+ * so they stay legible on either kind of surface.
+ */
 .atwork-widget {
-	--atwork-fg: var( --os-ui-fg, #1e1e1e );
-	--atwork-fg-muted: var( --os-ui-fg-muted, #646970 );
-	--atwork-border: var( --os-ui-border, rgba( 0, 0, 0, 0.12 ) );
 	--atwork-accent: var( --os-ui-accent, #2271b1 );
 	--atwork-danger: var( --os-ui-danger, #d63638 );
+
+	/* Mixed from the inherited text colour, so they follow the surface. */
+	--atwork-w-muted: color-mix( in srgb, currentColor 70%, transparent );
+	--atwork-w-divider: color-mix( in srgb, currentColor 12%, transparent );
+	--atwork-w-fill: color-mix( in srgb, currentColor 14%, transparent );
+	--atwork-w-fill-strong: color-mix( in srgb, currentColor 22%, transparent );
 
 	display: flex;
 	flex-direction: column;
 	gap: 8px;
 	block-size: 100%;
 	min-block-size: 0;
-	color: var( --atwork-fg );
+	/* Deliberately not set: the card has already chosen a readable colour for
+	   its own background, and it knows what that background is. */
 	font-size: 12px;
 }
 
@@ -1341,39 +1369,58 @@ button.atwork__button--danger {
 	flex: 1 1 auto;
 }
 
+/*
+ * The counts.
+ *
+ * Tinted rather than filled. Three solid lozenges -- a red one, a magenta one
+ * and a grey one -- sat on the glass like stickers and shouted louder than the
+ * tasks they were counting, which are the actual content. A wash of the same
+ * hue with the text carrying the colour says the same thing at the weight it
+ * deserves.
+ *
+ * Both hues are mixed toward `currentColor` so the text stays readable whichever
+ * surface the widget landed on: against white text the mix lightens, against
+ * dark text it deepens.
+ */
 .atwork-widget__count {
-	padding: 1px 7px;
+	padding: 1px 8px;
 	border-radius: 999px;
-	background: var( --atwork-border );
+	background: var( --atwork-w-fill );
 	font-size: 11px;
 	font-weight: 600;
+	font-variant-numeric: tabular-nums;
 }
 
 .atwork-widget__count.is-overdue {
-	background: var( --atwork-danger );
-	color: #fff;
+	background: color-mix( in srgb, var( --atwork-danger ) 26%, transparent );
+	color: color-mix( in srgb, var( --atwork-danger ) 52%, currentColor );
 }
 
 .atwork-widget__count.is-today {
-	background: var( --atwork-accent );
-	color: #fff;
+	background: color-mix( in srgb, var( --atwork-accent ) 26%, transparent );
+	color: color-mix( in srgb, var( --atwork-accent ) 52%, currentColor );
 }
 
 .atwork-widget__filter {
 	flex: 0 0 auto;
-	padding: 2px 8px;
-	border: 1px solid var( --atwork-border );
-	border-radius: 6px;
-	background: transparent;
-	color: var( --atwork-fg-muted );
+	padding: 2px 9px;
+	border: 1px solid var( --atwork-w-divider );
+	border-radius: 999px;
+	background: var( --atwork-w-fill );
+	color: inherit;
 	cursor: pointer;
 	font: inherit;
 	font-size: 11px;
+	transition: background-color 0.12s ease, border-color 0.12s ease;
+}
+
+.atwork-widget__filter:hover {
+	background: var( --atwork-w-fill-strong );
 }
 
 .atwork-widget__filter[ aria-expanded='true' ] {
-	border-color: var( --atwork-accent );
-	color: var( --atwork-accent );
+	border-color: color-mix( in srgb, var( --atwork-accent ) 60%, transparent );
+	background: color-mix( in srgb, var( --atwork-accent ) 22%, transparent );
 }
 
 .atwork-widget__picker {
@@ -1383,8 +1430,9 @@ button.atwork__button--danger {
 	max-block-size: 40%;
 	overflow-y: auto;
 	padding: 8px;
-	border: 1px solid var( --atwork-border );
-	border-radius: 8px;
+	border: 1px solid var( --atwork-w-divider );
+	border-radius: 10px;
+	background: var( --atwork-w-fill );
 }
 
 .atwork-widget__picker-row {
@@ -1401,7 +1449,7 @@ button.atwork__button--danger {
 	margin-block-end: 4px;
 	padding: 3px 0;
 	border: 0;
-	border-block-end: 1px solid var( --atwork-border );
+	border-block-end: 1px solid var( --atwork-w-divider );
 	background: transparent;
 	color: var( --atwork-accent );
 	cursor: pointer;
@@ -1411,13 +1459,13 @@ button.atwork__button--danger {
 }
 
 .atwork-widget__picker-all:disabled {
-	color: var( --atwork-fg-muted );
+	color: var( --atwork-w-muted );
 	cursor: default;
 }
 
 .atwork-widget__picker-empty {
 	margin: 0;
-	color: var( --atwork-fg-muted );
+	color: var( --atwork-w-muted );
 }
 
 .atwork-widget__list {
@@ -1431,7 +1479,7 @@ button.atwork__button--danger {
 
 .atwork-widget__item {
 	padding-block: 6px;
-	border-block-end: 1px solid var( --atwork-border );
+	border-block-end: 1px solid var( --atwork-w-divider );
 }
 
 .atwork-widget__item:last-child {
@@ -1451,29 +1499,53 @@ button.atwork__button--danger {
 	text-decoration: underline;
 }
 
+/*
+ * The row keeps the full ink and mutes its children individually, rather than
+ * dimming the whole row and letting them inherit it.
+ *
+ * The muted shades are `currentColor` at reduced *alpha*, which is what makes
+ * them follow any surface. But alpha compounds: an overdue date mixing a red
+ * into an already-62%-transparent inherited colour came out at 0.86 alpha and
+ * measured 4.34:1, under AA. Muting per child keeps `currentColor` opaque for
+ * anything that needs to mix against it.
+ */
 .atwork-widget__item-meta {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 6px;
 	margin-block-start: 3px;
-	color: var( --atwork-fg-muted );
 	font-size: 11px;
 }
 
 .atwork-widget__item-project {
 	padding: 0 6px;
 	border-radius: 999px;
-	background: var( --atwork-border );
+	background: var( --atwork-w-divider );
+	color: var( --atwork-w-muted );
 }
 
+.atwork-widget__item-due {
+	color: var( --atwork-w-muted );
+}
+
+/*
+ * Lightened toward the surface's own text colour. `#d63638` is a red chosen to
+ * sit on white, and on the widget's dark glass it measures 3.67:1 -- under AA,
+ * on the one word in the card that exists to be noticed. Mixing toward
+ * `currentColor` lifts it without turning it a different colour, and does the
+ * opposite (deepens it) if the widget ever lands on a light surface.
+ *
+ * `currentColor` here is the row's, not this element's, so it is the opaque ink
+ * rather than the muted shade set just above.
+ */
 .atwork-widget__item-due.is-overdue {
-	color: var( --atwork-danger );
+	color: color-mix( in srgb, var( --atwork-danger ) 62%, currentColor );
 	font-weight: 600;
 }
 
 .atwork-widget__status {
 	margin: 0;
-	color: var( --atwork-fg-muted );
+	color: var( --atwork-w-muted );
 }
 
 
