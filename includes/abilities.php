@@ -474,6 +474,10 @@ function atwork_register_abilities() {
 					absint( $input['limit'] ?? 25 )
 				);
 
+				if ( is_wp_error( $work ) ) {
+					return $work;
+				}
+
 				// The widget needs the project and status lists to draw its
 				// picker; an agent asking "what is on my plate" does not, and
 				// sending them spends context on a question nobody asked.

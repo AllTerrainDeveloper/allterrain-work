@@ -542,4 +542,44 @@ class Tests_ATWork_BoardApi extends WP_UnitTestCase {
 		// filter, or unticking the last box would leave nothing to tick back.
 		$this->assertCount( 2, $work['projects'] );
 	}
+
+	/**
+	 * Reading a colleague's queue is a staffing question and takes `list_users`.
+	 * The check lives in the helper itself, not only in the REST route, so every
+	 * front door -- present and future -- enforces it by construction.
+	 *
+	 * @covers ::atwork_get_my_work
+	 */
+	public function test_my_work_refuses_another_users_queue_without_list_users() {
+		$other = self::factory()->user->create( array( 'role' => 'editor' ) );
+
+		$work = atwork_get_my_work( $other );
+
+		$this->assertWPError( $work );
+		$this->assertSame( 'atwork_forbidden', $work->get_error_code() );
+	}
+
+	/**
+	 * Somebody who can already see the user list can see a user's workload.
+	 *
+	 * @covers ::atwork_get_my_work
+	 */
+	public function test_my_work_shows_another_users_queue_to_a_user_manager() {
+		$other = self::factory()->user->create( array( 'role' => 'editor' ) );
+		$admin = self::factory()->user->create( array( 'role' => 'administrator' ) );
+
+		wp_set_current_user( self::$editor );
+		atwork_create_task(
+			array(
+				'title' => 'Theirs',
+				'owner' => $other,
+			)
+		);
+
+		wp_set_current_user( $admin );
+		$work = atwork_get_my_work( $other );
+
+		$this->assertCount( 1, $work['tasks'] );
+		$this->assertSame( 'Theirs', $work['tasks'][0]['title'] );
+	}
 }

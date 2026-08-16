@@ -636,22 +636,13 @@ function atwork_rest_get_assignees( $request ) {
  * @return WP_REST_Response|WP_Error
  */
 function atwork_rest_get_my_work( $request ) {
-	$user_id = (int) $request['user'];
+	// The `list_users` gate on reading someone else's queue lives in
+	// `atwork_get_my_work()` itself, beside every other capability check, so
+	// each of its front doors -- this route, the ability, the next one --
+	// enforces it by construction rather than by remembering to.
+	$work = atwork_get_my_work( (int) $request['user'], (array) $request['projects'], (int) $request['limit'] );
 
-	// Reading someone else's queue is reading who is behind on what. That is a
-	// staffing question, not a board question, so it needs the capability that
-	// already gates seeing the user list at all.
-	if ( $user_id && get_current_user_id() !== $user_id && ! current_user_can( 'list_users' ) ) {
-		return new WP_Error(
-			'atwork_forbidden',
-			__( 'You are not allowed to view another user\'s work.', 'allterrain-work' ),
-			array( 'status' => rest_authorization_required_code() )
-		);
-	}
-
-	return rest_ensure_response(
-		atwork_get_my_work( $user_id, (array) $request['projects'], (int) $request['limit'] )
-	);
+	return is_wp_error( $work ) ? $work : rest_ensure_response( $work );
 }
 
 /**
