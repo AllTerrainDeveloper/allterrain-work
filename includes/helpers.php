@@ -1691,7 +1691,7 @@ function atwork_get_assignees( $search = '', $limit = 50 ) {
  * @param int   $user_id  User whose work to return. 0 for the current user.
  * @param int[] $projects Restrict to these projects. Empty for all.
  * @param int   $limit    Maximum cards. Default 25.
- * @return array {
+ * @return array|WP_Error {
  *     @type array[] $tasks    Task payloads, most urgent first.
  *     @type array   $counts   `overdue`, `today`, `upcoming`, `done`, `total`.
  *     @type array[] $projects Every project, so the widget can offer the picker.
@@ -1699,6 +1699,20 @@ function atwork_get_assignees( $search = '', $limit = 50 ) {
  */
 function atwork_get_my_work( $user_id = 0, $projects = array(), $limit = 25 ) {
 	$user_id = $user_id ? absint( $user_id ) : get_current_user_id();
+
+	// Reading someone else's queue is reading who is behind on what. That is a
+	// staffing question, not a board question, so it needs the capability that
+	// already gates seeing the user list at all. Checked here rather than only
+	// in the REST route, because this helper is also the ability surface and
+	// whatever front door is added next -- the same promise every other helper
+	// in this file makes: check capabilities yourself, trust no caller.
+	if ( get_current_user_id() !== $user_id && ! current_user_can( 'list_users' ) ) {
+		return new WP_Error(
+			'atwork_forbidden',
+			__( 'You are not allowed to view another user\'s work.', 'allterrain-work' ),
+			array( 'status' => rest_authorization_required_code() )
+		);
+	}
 
 	$tasks = atwork_get_tasks(
 		array(
